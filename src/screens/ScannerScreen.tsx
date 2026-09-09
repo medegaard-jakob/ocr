@@ -48,6 +48,35 @@ async function recognizeText(uri: string): Promise<string | null> {
   return result.text;
 }
 
+// Web camera captures return a full-resolution base64 data: URI. Storing
+// that as-is quickly blows the ~5-10MB localStorage quota that
+// AsyncStorage's web shim writes to (one photo can be several MB), which
+// makes the *next* save -- e.g. confirming a driver assignment -- fail
+// silently. Shrink to a small thumbnail before it ever reaches storage;
+// OCR already ran on the full-res original by the time this is called.
+function downscaleDataUrl(dataUrl: string, maxSide = 480, quality = 0.7): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas 2D context unavailable'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => reject(new Error('Could not downscale captured image'));
+    img.src = dataUrl;
+  });
+}
+
 function makeRecord(partial: Omit<ScanRecord, 'id' | 'timestamp' | 'manuallyEdited'>): ScanRecord {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -91,7 +120,17 @@ export default function ScannerScreen({ navigation }: Props) {
         );
       }
 
-      const record = makeRecord({ imageUri: photo.uri, rawText: text, uld });
+      let imageUri = photo.uri;
+      if (Platform.OS === 'web') {
+        try {
+          imageUri = await downscaleDataUrl(photo.uri);
+        } catch {
+          // Fall back to the full-res capture; storage may still reject it
+          // later, but that's no worse than skipping the shrink entirely.
+        }
+      }
+
+      const record = makeRecord({ imageUri, rawText: text, uld });
       navigation.navigate('Result', { record });
     } catch (err) {
       Alert.alert('Scan failed', err instanceof Error ? err.message : String(err));

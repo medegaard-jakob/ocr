@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -29,6 +30,21 @@ function loadTextRecognizer(): typeof import('@react-native-ml-kit/text-recognit
   } catch {
     return null;
   }
+}
+
+// On web there's no native module to load -- Tesseract.js runs OCR entirely
+// client-side (WASM), so it's always available there. Returns null only on
+// native platforms without a dev-client build (ML Kit not linked).
+async function recognizeText(uri: string): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    const { recognize } = await import('tesseract.js');
+    const result = await recognize(uri, 'eng');
+    return result.data.text;
+  }
+  const TextRecognition = loadTextRecognizer();
+  if (!TextRecognition) return null;
+  const result = await TextRecognition.recognize(uri);
+  return result.text;
 }
 
 function makeRecord(partial: Omit<ScanRecord, 'id' | 'timestamp' | 'manuallyEdited'>): ScanRecord {
@@ -55,8 +71,8 @@ export default function ScannerScreen({ navigation }: Props) {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       if (!photo) throw new Error('Camera did not return a photo.');
 
-      const TextRecognition = loadTextRecognizer();
-      if (!TextRecognition) {
+      const text = await recognizeText(photo.uri);
+      if (text === null) {
         Alert.alert(
           'OCR unavailable in this build',
           'On-device text recognition needs a custom dev-client or release build ' +
@@ -67,13 +83,14 @@ export default function ScannerScreen({ navigation }: Props) {
         return;
       }
 
-      const result = await TextRecognition.recognize(photo.uri);
-      const uld = findUldInText(result.text);
-      await Haptics.notificationAsync(
-        uld ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
-      );
+      const uld = findUldInText(text);
+      if (Platform.OS !== 'web') {
+        await Haptics.notificationAsync(
+          uld ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
+        );
+      }
 
-      const record = makeRecord({ imageUri: photo.uri, rawText: result.text, uld });
+      const record = makeRecord({ imageUri: photo.uri, rawText: text, uld });
       navigation.navigate('Result', { record });
     } catch (err) {
       Alert.alert('Scan failed', err instanceof Error ? err.message : String(err));
@@ -171,7 +188,9 @@ export default function ScannerScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} />
-      <ScanFrameOverlay hint="Align the ULD ID label (e.g. AKE12345LH) inside the frame" />
+      <ScanFrameOverlay
+        hint={busy ? 'Reading photo…' : 'Align the ULD ID label (e.g. AKE12345LH) inside the frame'}
+      />
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
         <Pressable style={styles.iconButton} onPress={() => setTorch((t) => !t)}>

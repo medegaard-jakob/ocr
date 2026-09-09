@@ -2,17 +2,24 @@
 
 A small proof-of-concept mobile app (Expo / React Native) that scans **ULD ID
 placards** (the labels on air cargo Unit Load Devices, e.g. `AKE12345LH`)
-using the phone camera and on-device OCR, validates the code against the
-IATA ULD ID format, and keeps a local scan history.
+using the phone camera and OCR, validates the code against the IATA ULD ID
+format, and keeps a local scan history.
+
+**Live demo (web, works on a phone browser — camera + real OCR):**
+`https://<github-username>.github.io/ocr/` once GitHub Pages is enabled for
+this repo (Settings → Pages → Source: GitHub Actions — one-time, deploys
+automatically after that on every push via `.github/workflows/deploy-pages.yml`).
 
 ## What it does
 
 1. **Scanner** — live camera view with a framing guide. Capture a photo of a
    ULD placard.
-2. **OCR** — the photo is run through on-device text recognition
-   ([Google ML Kit](https://developers.google.com/ml-kit/vision/text-recognition)
-   via `@react-native-ml-kit/text-recognition`, fully offline, no network
-   call).
+2. **OCR** — the photo is run through text recognition: on native builds,
+   on-device [Google ML Kit](https://developers.google.com/ml-kit/vision/text-recognition)
+   (`@react-native-ml-kit/text-recognition`, fully offline); on the web build,
+   [Tesseract.js](https://github.com/naptha/tesseract.js) running entirely
+   client-side in the browser via WebAssembly (no server, no native module —
+   this is what makes the web version work without a native app build).
 3. **Parse & validate** (`src/lib/uld.ts`) — the recognized text is scanned
    for a token matching the ULD ID shape:
    `[3-letter type code][4-5 digit serial][2-3 letter airline code]`

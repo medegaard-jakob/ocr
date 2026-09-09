@@ -5,7 +5,6 @@ import { Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import UldBadge from '../components/UldBadge';
 import { KNOWN_AIRLINE_CODES, KNOWN_TYPE_CODES, isValidUldCode, parseUldToken } from '../lib/uld';
-import { saveRecord } from '../lib/storage';
 import type { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
@@ -13,7 +12,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 export default function ResultScreen({ route, navigation }: Props) {
   const { record } = route.params;
   const [code, setCode] = useState(record.uld?.code ?? '');
-  const [saving, setSaving] = useState(false);
 
   const editedUld = code ? parseUldToken(code) : null;
   const codeIsValid = isValidUldCode(code);
@@ -22,22 +20,18 @@ export default function ResultScreen({ route, navigation }: Props) {
   const typeDescription = editedUld ? KNOWN_TYPE_CODES[editedUld.typeCode] : undefined;
   const airlineDescription = editedUld ? KNOWN_AIRLINE_CODES[editedUld.airlineCode] : undefined;
 
-  const onSave = async () => {
+  const onContinue = () => {
     if (!codeIsValid) {
-      Alert.alert('Invalid code', 'Fix the ULD code before saving (3 letters + 4-5 digits + 2-3 letters).');
+      Alert.alert('Invalid code', 'Fix the ULD code before continuing (3 letters + 4-5 digits + 2-3 letters).');
       return;
     }
-    setSaving(true);
-    try {
-      await saveRecord({
+    navigation.navigate('Dispatch', {
+      record: {
         ...record,
         uld: editedUld ?? record.uld,
         manuallyEdited: wasEdited,
-      });
-      navigation.navigate('History');
-    } finally {
-      setSaving(false);
-    }
+      },
+    });
   };
 
   return (
@@ -90,11 +84,11 @@ export default function ResultScreen({ route, navigation }: Props) {
           <Text style={styles.secondaryButtonText}>Rescan</Text>
         </Pressable>
         <Pressable
-          style={[styles.primaryButton, (!codeIsValid || saving) && styles.disabledButton]}
-          onPress={onSave}
-          disabled={!codeIsValid || saving}
+          style={[styles.primaryButton, !codeIsValid && styles.disabledButton]}
+          onPress={onContinue}
+          disabled={!codeIsValid}
         >
-          <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Save to history'}</Text>
+          <Text style={styles.primaryButtonText}>Continue to dispatch</Text>
         </Pressable>
       </View>
     </SafeAreaView>

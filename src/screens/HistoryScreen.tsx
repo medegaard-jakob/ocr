@@ -4,6 +4,7 @@ import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import UldBadge from '../components/UldBadge';
+import { PRIORITY_META } from '../lib/dispatch';
 import { clearHistory, deleteRecord, loadHistory } from '../lib/storage';
 import type { RootStackParamList, ScanRecord } from '../types';
 
@@ -54,7 +55,9 @@ export default function HistoryScreen({ navigation }: Props) {
         renderItem={({ item }) => (
           <Pressable
             style={styles.card}
-            onPress={() => navigation.navigate('Result', { record: item })}
+            onPress={() =>
+              navigation.navigate(item.dispatch ? 'Dispatch' : 'Result', { record: item })
+            }
             onLongPress={() => onDelete(item.id)}
           >
             {item.imageUri ? (
@@ -69,12 +72,35 @@ export default function HistoryScreen({ navigation }: Props) {
               <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleString()}</Text>
               <View style={styles.badgeRow}>
                 {item.uld && <UldBadge uld={item.uld} />}
+                {item.dispatch && (
+                  <View
+                    style={[
+                      styles.priorityBadge,
+                      { backgroundColor: PRIORITY_META[item.dispatch.priority].bg },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.priorityBadgeText,
+                        { color: PRIORITY_META[item.dispatch.priority].color },
+                      ]}
+                    >
+                      {PRIORITY_META[item.dispatch.priority].label}
+                    </Text>
+                  </View>
+                )}
                 {item.manuallyEdited && (
                   <View style={styles.editedBadge}>
                     <Text style={styles.editedBadgeText}>Manually edited</Text>
                   </View>
                 )}
               </View>
+              {item.dispatch && (
+                <Text style={styles.dispatchLine}>
+                  {item.dispatch.stand}
+                  {item.driver ? ` · ${item.driver.name} (${item.driver.vehicle})` : ' · unassigned'}
+                </Text>
+              )}
             </View>
           </Pressable>
         )}
@@ -117,6 +143,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#6B7280',
   },
   editedBadgeText: { color: 'white', fontSize: 12, fontWeight: '600' },
+  priorityBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  priorityBadgeText: { fontSize: 12, fontWeight: '700' },
+  dispatchLine: { fontSize: 12.5, color: '#374151', marginTop: 2 },
   footer: {
     flexDirection: 'row',
     gap: 12,

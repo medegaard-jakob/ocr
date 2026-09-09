@@ -82,6 +82,26 @@ export default function ScannerScreen({ navigation }: Props) {
     }
   };
 
+  const handleRequestPermission = async () => {
+    try {
+      const result = await requestPermission();
+      if (!result.granted) {
+        Alert.alert(
+          'Camera access unavailable',
+          result.canAskAgain === false
+            ? 'Camera permission was denied. Enable it in your browser/system settings, or use "Enter manually" below.'
+            : 'Camera access was not granted. Use "Enter manually" below to try the rest of the app.',
+        );
+      }
+    } catch (err) {
+      Alert.alert(
+        'Camera access unavailable',
+        `This environment blocked camera access (${err instanceof Error ? err.message : String(err)}). ` +
+          'Use "Enter manually" below to try the rest of the app.',
+      );
+    }
+  };
+
   const submitManual = () => {
     const uld = parseUldToken(manualText);
     if (!uld) {
@@ -95,6 +115,38 @@ export default function ScannerScreen({ navigation }: Props) {
     });
   };
 
+  const manualEntryModal = (
+    <Modal visible={manualVisible} transparent animationType="fade">
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Enter ULD ID</Text>
+          <TextInput
+            style={styles.modalInput}
+            placeholder="AKE12345LH"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            value={manualText}
+            onChangeText={setManualText}
+          />
+          <View style={styles.modalRow}>
+            <Pressable
+              style={[styles.secondaryButton, styles.modalButton]}
+              onPress={() => {
+                setManualVisible(false);
+                setManualText('');
+              }}
+            >
+              <Text style={styles.secondaryButtonText}>Cancel</Text>
+            </Pressable>
+            <Pressable style={[styles.primaryButton, styles.modalButton]} onPress={submitManual}>
+              <Text style={styles.primaryButtonText}>Use code</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   if (!permission) {
     return <View style={styles.center} />;
   }
@@ -105,9 +157,13 @@ export default function ScannerScreen({ navigation }: Props) {
         <Text style={styles.permissionText}>
           Camera access is needed to scan ULD ID placards.
         </Text>
-        <Pressable style={styles.primaryButton} onPress={requestPermission}>
+        <Pressable style={styles.primaryButton} onPress={handleRequestPermission}>
           <Text style={styles.primaryButtonText}>Grant camera permission</Text>
         </Pressable>
+        <Pressable style={[styles.secondaryButton, styles.darkSecondaryButton]} onPress={() => setManualVisible(true)}>
+          <Text style={styles.darkSecondaryButtonText}>Enter manually instead</Text>
+        </Pressable>
+        {manualEntryModal}
       </SafeAreaView>
     );
   }
@@ -136,35 +192,7 @@ export default function ScannerScreen({ navigation }: Props) {
         <View style={styles.secondaryButton} />
       </SafeAreaView>
 
-      <Modal visible={manualVisible} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Enter ULD ID</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="AKE12345LH"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              value={manualText}
-              onChangeText={setManualText}
-            />
-            <View style={styles.modalRow}>
-              <Pressable
-                style={[styles.secondaryButton, styles.modalButton]}
-                onPress={() => {
-                  setManualVisible(false);
-                  setManualText('');
-                }}
-              >
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={[styles.primaryButton, styles.modalButton]} onPress={submitManual}>
-                <Text style={styles.primaryButtonText}>Use code</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {manualEntryModal}
     </View>
   );
 }
@@ -219,6 +247,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryButtonText: { color: 'white', fontSize: 13, fontWeight: '600' },
+  darkSecondaryButton: { backgroundColor: '#E5E7EB' },
+  darkSecondaryButtonText: { color: '#111827', fontSize: 13, fontWeight: '600' },
   primaryButton: {
     backgroundColor: '#2563EB',
     paddingHorizontal: 20,

@@ -64,6 +64,31 @@ npx expo start
   still running in Expo Go), the app shows an explanatory alert instead of
   crashing, and manual entry keeps working.
 
+## Installing it on a phone without Android Studio/Xcode
+
+If you just want a real installable app on your phone to demo — camera and
+OCR both working — without setting up native build tooling, use
+[EAS Build](https://docs.expo.dev/build/introduction/) to compile it in the
+cloud. Requires a free Expo account (browser signup only) and Node on
+whatever machine you run these from — not the phone itself:
+
+```bash
+npx eas-cli login          # opens a browser to sign in / create an account
+npx eas-cli build --profile preview --platform android
+```
+
+The first run also asks to link the project to your account (creates it
+automatically, no extra steps). The build runs on Expo's servers — takes a
+few minutes — and finishes with a QR code and download link. Scan it (or
+open the link) on your phone to install the APK directly; no app store, no
+computer needed after that. `eas.json` in this repo already defines the
+`preview` build profile used above.
+
+(A web browser or the Claude artifact preview can't do this step for you —
+camera-stream permissions and Claude's own "ask Claude" capability are both
+sandboxed differently there, which is why those routes hit dead ends for a
+full working demo. This is the one path with no such caveats.)
+
 ## Project layout
 
 ```

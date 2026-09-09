@@ -16,8 +16,10 @@ export interface ScanRecord {
 }
 
 export type RootStackParamList = {
+  Home: undefined;
   Scanner: undefined;
   Result: { record: ScanRecord };
   Dispatch: { record: ScanRecord };
+  AssignDriver: { record: ScanRecord };
   History: undefined;
 };

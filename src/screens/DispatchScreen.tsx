@@ -1,19 +1,35 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Driver,
-  MOCK_DRIVERS,
-  PRIORITY_META,
-  formatClock,
-  formatRelative,
-  generateDispatchInfo,
-} from '../lib/dispatch';
-import { saveRecord } from '../lib/storage';
+import { PRIORITY_META, formatClock, formatRelative, generateDispatchInfo } from '../lib/dispatch';
+import { colors } from '../lib/theme';
 import type { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dispatch'>;
+
+function ClockIcon() {
+  return (
+    <View style={styles.clockCircle}>
+      <View style={styles.clockHandMinute} />
+      <View style={styles.clockHandHour} />
+    </View>
+  );
+}
+
+function PickupIcon() {
+  return <View style={styles.pickupBox} />;
+}
+
+function DestinationIcon() {
+  return (
+    <View style={styles.destGrid}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <View key={i} style={styles.destCell} />
+      ))}
+    </View>
+  );
+}
 
 export default function DispatchScreen({ route, navigation }: Props) {
   const { record } = route.params;
@@ -23,174 +39,182 @@ export default function DispatchScreen({ route, navigation }: Props) {
   // stand/time jump around while the dispatcher is looking at it.
   const dispatch = useMemo(() => record.dispatch ?? generateDispatchInfo(code), [code, record.dispatch]);
   const priorityMeta = PRIORITY_META[dispatch.priority];
-
-  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(record.driver?.id ?? null);
-  const [confirming, setConfirming] = useState(false);
-
-  const selectedDriver = MOCK_DRIVERS.find((d) => d.id === selectedDriverId) ?? null;
-
-  const onConfirm = async () => {
-    if (!selectedDriver) return;
-    setConfirming(true);
-    try {
-      await saveRecord({ ...record, dispatch, driver: selectedDriver });
-      navigation.navigate('History');
-    } finally {
-      setConfirming(false);
-    }
-  };
+  const windowMin = Math.round((dispatch.latestDeliveryTime - dispatch.startTime) / 60_000);
+  const totalTimeLabel = windowMin < 60 ? `${windowMin} min` : `${Math.floor(windowMin / 60)}h ${windowMin % 60}m`;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.headerRow}>
-          <Text style={styles.code}>{code}</Text>
-          <View style={[styles.priorityBadge, { backgroundColor: priorityMeta.bg }]}>
-            <Text style={[styles.priorityBadgeText, { color: priorityMeta.color }]}>{priorityMeta.label}</Text>
+      <View style={styles.content}>
+        <Text style={styles.heading}>Transportation order created</Text>
+
+        <View style={styles.card}>
+          <View style={styles.routeRow}>
+            <PickupIcon />
+            <Text style={styles.arrow}>→</Text>
+            <DestinationIcon />
+            <View style={styles.durationChip}>
+              <ClockIcon />
+              <Text style={styles.durationChipText}>{totalTimeLabel}</Text>
+            </View>
+          </View>
+          <Text style={styles.routeLabel}>
+            {code} <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
+          </Text>
+
+          <View style={styles.metaRow}>
+            <Text style={styles.uldCountBadge}>1 ULD</Text>
+            <View style={[styles.priorityBadge, { backgroundColor: priorityMeta.bg }]}>
+              <Text style={[styles.priorityBadgeText, { color: priorityMeta.color }]}>{priorityMeta.label}</Text>
+            </View>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Destination</Text>
-          <View style={styles.standCard}>
-            <Text style={styles.standValue}>{dispatch.stand}</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Row label="Start time" value={formatClock(dispatch.startTime)} sub={formatRelative(dispatch.startTime)} />
-          <Row
+        <View style={styles.timesCard}>
+          <TimeRow label="Start time" value={formatClock(dispatch.startTime)} sub={formatRelative(dispatch.startTime)} />
+          <TimeRow
             label="Latest delivery"
             value={formatClock(dispatch.latestDeliveryTime)}
             sub={formatRelative(dispatch.latestDeliveryTime)}
           />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Assign driver</Text>
-          <FlatList
-            data={MOCK_DRIVERS}
-            keyExtractor={(d) => d.id}
-            scrollEnabled={false}
-            renderItem={({ item }) => (
-              <DriverRow driver={item} selected={item.id === selectedDriverId} onPress={() => setSelectedDriverId(item.id)} />
-            )}
-          />
+        <View style={styles.totalTimeRow}>
+          <ClockIcon />
+          <Text style={styles.totalTimeText}>Total time: {totalTimeLabel}</Text>
         </View>
-      </ScrollView>
+      </View>
 
       <View style={styles.footer}>
-        <Pressable style={styles.secondaryButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.secondaryButtonText}>Back</Text>
-        </Pressable>
         <Pressable
-          style={[styles.primaryButton, (!selectedDriver || confirming) && styles.disabledButton]}
-          onPress={onConfirm}
-          disabled={!selectedDriver || confirming}
+          style={styles.assignButton}
+          onPress={() => navigation.navigate('AssignDriver', { record: { ...record, dispatch } })}
         >
-          <Text style={styles.primaryButtonText}>
-            {confirming ? 'Assigning…' : selectedDriver ? `Assign to ${selectedDriver.name.split(' ')[0]}` : 'Select a driver'}
-          </Text>
+          <Text style={styles.assignButtonText}>{record.driver ? 'Change driver' : 'Assign driver'}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
   );
 }
 
-function Row({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function TimeRow({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
+    <View style={styles.timeRow}>
+      <Text style={styles.timeRowLabel}>{label}</Text>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-        <Text style={styles.rowValue}>{value}</Text>
-        {sub && <Text style={styles.rowSub}>{sub}</Text>}
+        <Text style={styles.timeRowValue}>{value}</Text>
+        <Text style={styles.timeRowSub}>{sub}</Text>
       </View>
     </View>
   );
 }
 
-function DriverRow({ driver, selected, onPress }: { driver: Driver; selected: boolean; onPress: () => void }) {
-  return (
-    <Pressable style={[styles.driverRow, selected && styles.driverRowSelected]} onPress={onPress}>
-      <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.driverName}>{driver.name}</Text>
-        <Text style={styles.driverVehicle}>{driver.vehicle}</Text>
-      </View>
-      <View style={styles.statusRow}>
-        <View style={[styles.statusDot, driver.status === 'available' ? styles.statusDotFree : styles.statusDotBusy]} />
-        <Text style={styles.statusText}>{driver.status === 'available' ? 'Available' : 'On route'}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white' },
-  content: { padding: 16, gap: 20 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  code: { fontSize: 24, fontWeight: '700', color: '#111827', letterSpacing: 1 },
-  priorityBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
-  priorityBadgeText: { fontSize: 12, fontWeight: '700' },
-  section: { gap: 8 },
-  label: { fontSize: 12, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase' },
-  standCard: {
-    backgroundColor: '#EFF6FF',
+  container: { flex: 1, backgroundColor: colors.bg },
+  content: { flex: 1, padding: 20, gap: 20 },
+  heading: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  card: {
+    backgroundColor: colors.surface,
     borderRadius: 10,
-    paddingVertical: 16,
-    alignItems: 'center',
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  standValue: { fontSize: 28, fontWeight: '800', color: '#1D4ED8', letterSpacing: 0.5 },
-  row: { flexDirection: 'row', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  rowLabel: { width: 110, fontSize: 13, color: '#6B7280' },
-  rowValue: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  rowSub: { fontSize: 13, color: '#6B7280' },
-  driverRow: {
+  routeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  arrow: { color: colors.textSecondary, fontSize: 18, fontWeight: '700' },
+  pickupBox: {
+    width: 30,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.accent,
+  },
+  destGrid: {
+    width: 32,
+    height: 24,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 2,
+  },
+  destCell: { width: 9, height: 10, backgroundColor: colors.accent, borderRadius: 1 },
+  durationChip: {
+    marginLeft: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    marginBottom: 8,
+    gap: 6,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
-  driverRowSelected: { borderColor: '#2563EB', backgroundColor: '#EFF6FF' },
-  radio: {
+  durationChipText: { color: colors.textPrimary, fontSize: 12.5, fontWeight: '600' },
+  routeLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', letterSpacing: 0.5 },
+  routeLabelMuted: { color: colors.textSecondary, fontWeight: '400' },
+  metaRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  uldCountBadge: {
+    color: colors.textSecondary,
+    fontSize: 12.5,
+    fontWeight: '600',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  priorityBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  priorityBadgeText: { fontSize: 12.5, fontWeight: '700' },
+  timesCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+  },
+  timeRow: { flexDirection: 'row', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  timeRowLabel: { width: 110, fontSize: 13, color: colors.textSecondary },
+  timeRowValue: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  timeRowSub: { fontSize: 13, color: colors.textSecondary },
+  totalTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'center', marginTop: 8 },
+  totalTimeText: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  clockCircle: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderWidth: 1.5,
+    borderColor: colors.textSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioSelected: { borderColor: '#2563EB' },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563EB' },
-  driverName: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  driverVehicle: { fontSize: 12.5, color: '#6B7280', marginTop: 1 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusDotFree: { backgroundColor: '#16A34A' },
-  statusDotBusy: { backgroundColor: '#D97706' },
-  statusText: { fontSize: 12, color: '#6B7280' },
+  clockHandMinute: {
+    position: 'absolute',
+    width: 1.5,
+    height: 7,
+    backgroundColor: colors.textSecondary,
+    top: 3,
+    left: '50%',
+    marginLeft: -0.75,
+  },
+  clockHandHour: {
+    position: 'absolute',
+    width: 5,
+    height: 1.5,
+    backgroundColor: colors.textSecondary,
+    top: '50%',
+    marginTop: -0.75,
+    left: 9.5,
+  },
   footer: {
-    flexDirection: 'row',
-    gap: 12,
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
-  secondaryButton: {
-    flex: 1,
-    paddingVertical: 14,
+  assignButton: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  secondaryButtonText: { color: '#111827', fontWeight: '700' },
-  primaryButton: { flex: 2, paddingVertical: 14, borderRadius: 8, backgroundColor: '#2563EB', alignItems: 'center' },
-  disabledButton: { opacity: 0.5 },
-  primaryButtonText: { color: 'white', fontWeight: '700' },
+  assignButtonText: { color: colors.textPrimary, fontWeight: '700', fontSize: 15 },
 });

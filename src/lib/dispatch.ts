@@ -19,9 +19,15 @@ export type DriverStatus = 'available' | 'on_route';
 
 export interface Driver {
   id: string;
+  /** Short tug/vehicle code shown as a chip, e.g. "T004". */
+  code: string;
   name: string;
   vehicle: string;
   status: DriverStatus;
+  shiftStart: string;
+  shiftEnd: string;
+  /** How many other transportation orders are already queued to this driver. */
+  activeTasks: number;
 }
 
 export const PRIORITY_META: Record<Priority, { label: string; color: string; bg: string }> = {
@@ -31,12 +37,12 @@ export const PRIORITY_META: Record<Priority, { label: string; color: string; bg:
 };
 
 export const MOCK_DRIVERS: Driver[] = [
-  { id: 'd1', name: 'Marcus Webb', vehicle: 'Tug 04', status: 'available' },
-  { id: 'd2', name: 'Priya Nair', vehicle: 'Tug 11', status: 'available' },
-  { id: 'd3', name: 'Sam Okafor', vehicle: 'Tug 07', status: 'on_route' },
-  { id: 'd4', name: 'Elena Kowalski', vehicle: 'Tug 15', status: 'available' },
-  { id: 'd5', name: 'Jonas Berg', vehicle: 'Tug 02', status: 'on_route' },
-  { id: 'd6', name: 'Aisha Mensah', vehicle: 'Tug 19', status: 'available' },
+  { id: 'd1', code: 'T347', name: 'Marcus Webb', vehicle: 'Tug 04', status: 'available', shiftStart: '05:00', shiftEnd: '14:00', activeTasks: 0 },
+  { id: 'd2', code: 'T002', name: 'Priya Nair', vehicle: 'Tug 11', status: 'available', shiftStart: '06:00', shiftEnd: '15:00', activeTasks: 1 },
+  { id: 'd3', code: 'T122', name: 'Sam Okafor', vehicle: 'Tug 07', status: 'on_route', shiftStart: '05:00', shiftEnd: '16:00', activeTasks: 2 },
+  { id: 'd4', code: 'T075', name: 'Elena Kowalski', vehicle: 'Tug 15', status: 'available', shiftStart: '05:00', shiftEnd: '14:00', activeTasks: 0 },
+  { id: 'd5', code: 'T034', name: 'Jonas Berg', vehicle: 'Tug 02', status: 'on_route', shiftStart: '05:00', shiftEnd: '14:00', activeTasks: 3 },
+  { id: 'd6', code: 'T091', name: 'Aisha Mensah', vehicle: 'Tug 19', status: 'available', shiftStart: '07:00', shiftEnd: '16:00', activeTasks: 1 },
 ];
 
 // djb2 string hash -> mulberry32 PRNG, so a given ULD code always maps to

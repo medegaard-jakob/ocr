@@ -4,6 +4,7 @@ import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, View } from 'rea
 import { Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import UldBadge from '../components/UldBadge';
+import { colors } from '../lib/theme';
 import { KNOWN_AIRLINE_CODES, KNOWN_TYPE_CODES, isValidUldCode, parseUldToken } from '../lib/uld';
 import type { RootStackParamList } from '../types';
 
@@ -108,47 +109,50 @@ function Row({ label, value, sub }: { label: string; value: string; sub?: string
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white' },
+  container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, gap: 20 },
-  image: { width: '100%', height: 200, borderRadius: 12, backgroundColor: '#E5E7EB' },
+  image: { width: '100%', height: 200, borderRadius: 12, backgroundColor: colors.surfaceAlt },
   section: { gap: 8 },
-  label: { fontSize: 12, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase' },
-  noMatch: { color: '#B91C1C', fontSize: 14 },
+  label: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase' },
+  noMatch: { color: colors.danger, fontSize: 14 },
   codeInput: {
     borderWidth: 1.5,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: 2,
-    color: '#111827',
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
   },
-  codeInputInvalid: { borderColor: '#DC2626' },
-  errorText: { color: '#DC2626', fontSize: 12 },
-  row: { flexDirection: 'row', gap: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  rowLabel: { width: 110, fontSize: 13, color: '#6B7280' },
-  rowValue: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  rowSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  rawBox: { backgroundColor: '#F9FAFB', borderRadius: 8, padding: 12 },
-  rawText: { fontFamily: 'monospace', fontSize: 13, color: '#374151' },
+  codeInputInvalid: { borderColor: colors.danger },
+  errorText: { color: colors.danger, fontSize: 12 },
+  row: { flexDirection: 'row', gap: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  rowLabel: { width: 110, fontSize: 13, color: colors.textSecondary },
+  rowValue: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  rowSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  rawBox: { backgroundColor: colors.surface, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: colors.border },
+  rawText: { fontFamily: 'monospace', fontSize: 13, color: colors.textSecondary },
   footer: {
     flexDirection: 'row',
     gap: 12,
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   secondaryButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
   },
-  secondaryButtonText: { color: '#111827', fontWeight: '700' },
-  primaryButton: { flex: 2, paddingVertical: 14, borderRadius: 8, backgroundColor: '#2563EB', alignItems: 'center' },
+  secondaryButtonText: { color: colors.textPrimary, fontWeight: '700' },
+  primaryButton: { flex: 2, paddingVertical: 14, borderRadius: 8, backgroundColor: colors.accentDeep, alignItems: 'center' },
   disabledButton: { opacity: 0.5 },
   primaryButtonText: { color: 'white', fontWeight: '700' },
 });

@@ -6,6 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import UldBadge from '../components/UldBadge';
 import { PRIORITY_META } from '../lib/dispatch';
 import { clearHistory, deleteRecord, loadHistory } from '../lib/storage';
+import { colors } from '../lib/theme';
 import type { RootStackParamList, ScanRecord } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'History'>;
@@ -118,43 +119,43 @@ export default function HistoryScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white' },
+  container: { flex: 1, backgroundColor: colors.bg },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: '#9CA3AF', fontSize: 15 },
+  emptyText: { color: colors.textMuted, fontSize: 15 },
   card: {
     flexDirection: 'row',
     gap: 12,
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.divider,
   },
-  thumb: { width: 64, height: 64, borderRadius: 8, backgroundColor: '#E5E7EB' },
+  thumb: { width: 64, height: 64, borderRadius: 8, backgroundColor: colors.surfaceAlt },
   thumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  thumbPlaceholderText: { fontSize: 11, color: '#9CA3AF' },
+  thumbPlaceholderText: { fontSize: 11, color: colors.textMuted },
   cardBody: { flex: 1, gap: 4, justifyContent: 'center' },
-  code: { fontSize: 17, fontWeight: '700', color: '#111827', letterSpacing: 1 },
-  timestamp: { fontSize: 12, color: '#6B7280' },
+  code: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, letterSpacing: 1 },
+  timestamp: { fontSize: 12, color: colors.textSecondary },
   badgeRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   editedBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: '#6B7280',
+    backgroundColor: colors.disabled,
   },
   editedBadgeText: { color: 'white', fontSize: 12, fontWeight: '600' },
   priorityBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   priorityBadgeText: { fontSize: 12, fontWeight: '700' },
-  dispatchLine: { fontSize: 12.5, color: '#374151', marginTop: 2 },
+  dispatchLine: { fontSize: 12.5, color: colors.textSecondary, marginTop: 2 },
   footer: {
     flexDirection: 'row',
     gap: 12,
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
-  scanButton: { flex: 2, paddingVertical: 14, borderRadius: 8, backgroundColor: '#2563EB', alignItems: 'center' },
+  scanButton: { flex: 2, paddingVertical: 14, borderRadius: 8, backgroundColor: colors.accentDeep, alignItems: 'center' },
   scanButtonText: { color: 'white', fontWeight: '700' },
-  clearButton: { flex: 1, paddingVertical: 14, borderRadius: 8, backgroundColor: '#FEE2E2', alignItems: 'center' },
-  clearButtonText: { color: '#B91C1C', fontWeight: '700' },
+  clearButton: { flex: 1, paddingVertical: 14, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  clearButtonText: { color: colors.danger, fontWeight: '700' },
 });

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScanFrameOverlay from '../components/ScanFrameOverlay';
+import { colors } from '../lib/theme';
 import { findUldInText, parseUldToken } from '../lib/uld';
 import type { RootStackParamList, ScanRecord } from '../types';
 
@@ -177,8 +178,8 @@ export default function ScannerScreen({ navigation }: Props) {
         <Pressable style={styles.primaryButton} onPress={handleRequestPermission}>
           <Text style={styles.primaryButtonText}>Grant camera permission</Text>
         </Pressable>
-        <Pressable style={[styles.secondaryButton, styles.darkSecondaryButton]} onPress={() => setManualVisible(true)}>
-          <Text style={styles.darkSecondaryButtonText}>Enter manually instead</Text>
+        <Pressable style={styles.secondaryButton} onPress={() => setManualVisible(true)}>
+          <Text style={styles.secondaryButtonText}>Enter manually instead</Text>
         </Pressable>
         {manualEntryModal}
       </SafeAreaView>
@@ -218,8 +219,8 @@ export default function ScannerScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
-  permissionText: { textAlign: 'center', fontSize: 16, color: '#1F2937' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, backgroundColor: colors.bg },
+  permissionText: { textAlign: 'center', fontSize: 16, color: colors.textPrimary },
   topBar: {
     position: 'absolute',
     top: 0,
@@ -266,10 +267,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryButtonText: { color: 'white', fontSize: 13, fontWeight: '600' },
-  darkSecondaryButton: { backgroundColor: '#E5E7EB' },
-  darkSecondaryButtonText: { color: '#111827', fontSize: 13, fontWeight: '600' },
   primaryButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.accentDeep,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
@@ -278,21 +277,31 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: 'white', fontSize: 15, fontWeight: '700' },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
-  modalCard: { backgroundColor: 'white', borderRadius: 12, padding: 20, width: '100%', gap: 12 },
-  modalTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
     letterSpacing: 1,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceAlt,
   },
   modalRow: { flexDirection: 'row', gap: 12, justifyContent: 'flex-end' },
   modalButton: { minWidth: 0 },

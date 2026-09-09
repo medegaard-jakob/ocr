@@ -6,20 +6,36 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import UldBadge from '../components/UldBadge';
 import { colors } from '../lib/theme';
 import { KNOWN_AIRLINE_CODES, KNOWN_TYPE_CODES, isValidUldCode, parseUldToken } from '../lib/uld';
-import type { RootStackParamList } from '../types';
+import { MAX_ULDS_PER_RIDE, type RootStackParamList, type UldEntry } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
 export default function ResultScreen({ route, navigation }: Props) {
-  const { record } = route.params;
-  const [code, setCode] = useState(record.uld?.code ?? '');
+  const { entry, ride } = route.params;
+  const [code, setCode] = useState(entry.uld?.code ?? '');
 
   const editedUld = code ? parseUldToken(code) : null;
   const codeIsValid = isValidUldCode(code);
-  const wasEdited = code !== (record.uld?.code ?? '');
+  const wasEdited = code !== (entry.uld?.code ?? '');
+  const canAddAnother = ride.length + 1 < MAX_ULDS_PER_RIDE;
 
   const typeDescription = editedUld ? KNOWN_TYPE_CODES[editedUld.typeCode] : undefined;
   const airlineDescription = editedUld ? KNOWN_AIRLINE_CODES[editedUld.airlineCode] : undefined;
+
+  const confirmedEntry = (): UldEntry => ({
+    imageUri: entry.imageUri,
+    rawText: entry.rawText,
+    uld: editedUld ?? entry.uld,
+    manuallyEdited: wasEdited,
+  });
+
+  const onAddAnother = () => {
+    if (!codeIsValid) {
+      Alert.alert('Invalid code', 'Fix the ULD code before adding it to the ride.');
+      return;
+    }
+    navigation.navigate('Scanner', { ride: [...ride, confirmedEntry()] });
+  };
 
   const onContinue = () => {
     if (!codeIsValid) {
@@ -28,9 +44,9 @@ export default function ResultScreen({ route, navigation }: Props) {
     }
     navigation.navigate('Dispatch', {
       record: {
-        ...record,
-        uld: editedUld ?? record.uld,
-        manuallyEdited: wasEdited,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        timestamp: Date.now(),
+        ulds: [...ride, confirmedEntry()],
       },
     });
   };
@@ -38,12 +54,27 @@ export default function ResultScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        {record.imageUri && <Image source={{ uri: record.imageUri }} style={styles.image} />}
+        {ride.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.label}>
+              Already in this ride ({ride.length}/{MAX_ULDS_PER_RIDE})
+            </Text>
+            <View style={styles.rideChipRow}>
+              {ride.map((r, i) => (
+                <View key={i} style={styles.rideChip}>
+                  <Text style={styles.rideChipText}>{r.uld?.code ?? 'Unrecognized'}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {entry.imageUri && <Image source={{ uri: entry.imageUri }} style={styles.image} />}
 
         <View style={styles.section}>
           <Text style={styles.label}>Detected code</Text>
-          {record.uld ? (
-            <UldBadge uld={record.uld} />
+          {entry.uld ? (
+            <UldBadge uld={entry.uld} />
           ) : (
             <Text style={styles.noMatch}>No ULD-shaped code found in the scanned text</Text>
           )}
@@ -75,10 +106,22 @@ export default function ResultScreen({ route, navigation }: Props) {
         <View style={styles.section}>
           <Text style={styles.label}>Raw OCR text</Text>
           <View style={styles.rawBox}>
-            <Text style={styles.rawText}>{record.rawText || '(empty)'}</Text>
+            <Text style={styles.rawText}>{entry.rawText || '(empty)'}</Text>
           </View>
         </View>
       </ScrollView>
+
+      {canAddAnother && (
+        <Pressable
+          style={[styles.addButton, !codeIsValid && styles.disabledButton]}
+          onPress={onAddAnother}
+          disabled={!codeIsValid}
+        >
+          <Text style={styles.addButtonText}>
+            Add another ULD ({ride.length + 1}/{MAX_ULDS_PER_RIDE})
+          </Text>
+        </Pressable>
+      )}
 
       <View style={styles.footer}>
         <Pressable style={styles.secondaryButton} onPress={() => navigation.goBack()}>
@@ -115,6 +158,16 @@ const styles = StyleSheet.create({
   section: { gap: 8 },
   label: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase' },
   noMatch: { color: colors.danger, fontSize: 14 },
+  rideChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  rideChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  rideChipText: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', letterSpacing: 0.5 },
   codeInput: {
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -135,6 +188,16 @@ const styles = StyleSheet.create({
   rowSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   rawBox: { backgroundColor: colors.surface, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: colors.border },
   rawText: { fontFamily: 'monospace', fontSize: 13, color: colors.textSecondary },
+  addButton: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    alignItems: 'center',
+  },
+  addButtonText: { color: colors.accent, fontWeight: '700' },
   footer: {
     flexDirection: 'row',
     gap: 12,

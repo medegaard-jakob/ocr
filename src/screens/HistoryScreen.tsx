@@ -54,58 +54,64 @@ export default function HistoryScreen({ navigation }: Props) {
         keyExtractor={(r) => r.id}
         contentContainerStyle={records.length === 0 && styles.emptyContainer}
         ListEmptyComponent={<Text style={styles.emptyText}>No scans saved yet</Text>}
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.card}
-            onPress={() =>
-              navigation.navigate(item.dispatch ? 'Dispatch' : 'Result', { record: item })
-            }
-            onLongPress={() => onDelete(item.id)}
-          >
-            {item.imageUri ? (
-              <Image source={{ uri: item.imageUri }} style={styles.thumb} />
-            ) : (
-              <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                <Text style={styles.thumbPlaceholderText}>manual</Text>
-              </View>
-            )}
-            <View style={styles.cardBody}>
-              <Text style={styles.code}>{item.uld?.code ?? 'Unrecognized'}</Text>
-              <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleString()}</Text>
-              <View style={styles.badgeRow}>
-                {item.uld && <UldBadge uld={item.uld} />}
-                {item.dispatch && (
-                  <View
-                    style={[
-                      styles.priorityBadge,
-                      { backgroundColor: PRIORITY_META[item.dispatch.priority].bg },
-                    ]}
-                  >
-                    <Text
+        renderItem={({ item }) => {
+          const primary = item.ulds[0];
+          const extraCount = item.ulds.length - 1;
+          const anyManuallyEdited = item.ulds.some((u) => u.manuallyEdited);
+          return (
+            <Pressable
+              style={styles.card}
+              onPress={() => navigation.navigate('Dispatch', { record: item })}
+              onLongPress={() => onDelete(item.id)}
+            >
+              {primary.imageUri ? (
+                <Image source={{ uri: primary.imageUri }} style={styles.thumb} />
+              ) : (
+                <View style={[styles.thumb, styles.thumbPlaceholder]}>
+                  <Text style={styles.thumbPlaceholderText}>manual</Text>
+                </View>
+              )}
+              <View style={styles.cardBody}>
+                <Text style={styles.code}>
+                  {primary.uld?.code ?? 'Unrecognized'}
+                  {extraCount > 0 && <Text style={styles.codeExtra}> +{extraCount} more</Text>}
+                </Text>
+                <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleString()}</Text>
+                <View style={styles.badgeRow}>
+                  {primary.uld && <UldBadge uld={primary.uld} />}
+                  {item.dispatch && (
+                    <View
                       style={[
-                        styles.priorityBadgeText,
-                        { color: PRIORITY_META[item.dispatch.priority].color },
+                        styles.priorityBadge,
+                        { backgroundColor: PRIORITY_META[item.dispatch.priority].bg },
                       ]}
                     >
-                      {PRIORITY_META[item.dispatch.priority].label}
-                    </Text>
-                  </View>
-                )}
-                {item.manuallyEdited && (
-                  <View style={styles.editedBadge}>
-                    <Text style={styles.editedBadgeText}>Manually edited</Text>
-                  </View>
+                      <Text
+                        style={[
+                          styles.priorityBadgeText,
+                          { color: PRIORITY_META[item.dispatch.priority].color },
+                        ]}
+                      >
+                        {PRIORITY_META[item.dispatch.priority].label}
+                      </Text>
+                    </View>
+                  )}
+                  {anyManuallyEdited && (
+                    <View style={styles.editedBadge}>
+                      <Text style={styles.editedBadgeText}>Manually edited</Text>
+                    </View>
+                  )}
+                </View>
+                {item.dispatch && (
+                  <Text style={styles.dispatchLine}>
+                    {item.dispatch.stand}
+                    {item.driver ? ` · ${item.driver.name} (${item.driver.vehicle})` : ' · unassigned'}
+                  </Text>
                 )}
               </View>
-              {item.dispatch && (
-                <Text style={styles.dispatchLine}>
-                  {item.dispatch.stand}
-                  {item.driver ? ` · ${item.driver.name} (${item.driver.vehicle})` : ' · unassigned'}
-                </Text>
-              )}
-            </View>
-          </Pressable>
-        )}
+            </Pressable>
+          );
+        }}
       />
       <View style={styles.footer}>
         <Pressable style={styles.scanButton} onPress={() => navigation.navigate('Scanner')}>
@@ -136,6 +142,7 @@ const styles = StyleSheet.create({
   thumbPlaceholderText: { fontSize: 11, color: colors.textMuted },
   cardBody: { flex: 1, gap: 4, justifyContent: 'center' },
   code: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, letterSpacing: 1 },
+  codeExtra: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0 },
   timestamp: { fontSize: 12, color: colors.textSecondary },
   badgeRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   editedBadge: {

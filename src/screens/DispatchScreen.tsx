@@ -33,14 +33,19 @@ function DestinationIcon() {
 
 export default function DispatchScreen({ route, navigation }: Props) {
   const { record } = route.params;
-  const code = record.uld?.code ?? 'UNKNOWN';
+  const codes = record.ulds.map((u) => u.uld?.code ?? 'Unrecognized');
+  // ULDs travelling together share one stand/time/priority. Seeding off all
+  // their codes keeps it deterministic (same ride -> same dispatch) without
+  // needing to merge N separately-generated DispatchInfo objects.
+  const seed = codes.join('+');
 
   // Stable per screen-visit: regenerating on every render would make the
   // stand/time jump around while the dispatcher is looking at it.
-  const dispatch = useMemo(() => record.dispatch ?? generateDispatchInfo(code), [code, record.dispatch]);
+  const dispatch = useMemo(() => record.dispatch ?? generateDispatchInfo(seed), [seed, record.dispatch]);
   const priorityMeta = PRIORITY_META[dispatch.priority];
   const windowMin = Math.round((dispatch.latestDeliveryTime - dispatch.startTime) / 60_000);
   const totalTimeLabel = windowMin < 60 ? `${windowMin} min` : `${Math.floor(windowMin / 60)}h ${windowMin % 60}m`;
+  const uldCountLabel = `${record.ulds.length} ULD${record.ulds.length > 1 ? 's' : ''}`;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -58,11 +63,11 @@ export default function DispatchScreen({ route, navigation }: Props) {
             </View>
           </View>
           <Text style={styles.routeLabel}>
-            {code} <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
+            {codes.join(', ')} <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
           </Text>
 
           <View style={styles.metaRow}>
-            <Text style={styles.uldCountBadge}>1 ULD</Text>
+            <Text style={styles.uldCountBadge}>{uldCountLabel}</Text>
             <View style={[styles.priorityBadge, { backgroundColor: priorityMeta.bg }]}>
               <Text style={[styles.priorityBadgeText, { color: priorityMeta.color }]}>{priorityMeta.label}</Text>
             </View>

@@ -106,7 +106,9 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
               <Text style={styles.toastArrow}>→</Text>
               <TractorIcon available />
             </View>
-            <Text style={styles.toastText}>Task sent to {toastDriver.vehicle.toLowerCase()}</Text>
+            <Text style={styles.toastText}>
+              {record.ulds.length > 1 ? 'Tasks' : 'Task'} sent to {toastDriver.vehicle.toLowerCase()}
+            </Text>
           </View>
         </View>
       )}

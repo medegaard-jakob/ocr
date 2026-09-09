@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ScanFrameOverlay from '../components/ScanFrameOverlay';
 import { colors } from '../lib/theme';
 import { findUldInText, parseUldToken } from '../lib/uld';
-import type { RootStackParamList, ScanRecord } from '../types';
+import { MAX_ULDS_PER_RIDE, type RootStackParamList, type UldEntry } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Scanner'>;
 
@@ -77,16 +77,8 @@ function downscaleDataUrl(dataUrl: string, maxSide = 480, quality = 0.7): Promis
   });
 }
 
-function makeRecord(partial: Omit<ScanRecord, 'id' | 'timestamp' | 'manuallyEdited'>): ScanRecord {
-  return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    timestamp: Date.now(),
-    manuallyEdited: false,
-    ...partial,
-  };
-}
-
-export default function ScannerScreen({ navigation }: Props) {
+export default function ScannerScreen({ navigation, route }: Props) {
+  const ride = route.params?.ride ?? [];
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -130,8 +122,8 @@ export default function ScannerScreen({ navigation }: Props) {
         }
       }
 
-      const record = makeRecord({ imageUri, rawText: text, uld });
-      navigation.navigate('Result', { record });
+      const entry: UldEntry = { imageUri, rawText: text, uld, manuallyEdited: false };
+      navigation.navigate('Result', { entry, ride });
     } catch (err) {
       Alert.alert('Scan failed', err instanceof Error ? err.message : String(err));
     } finally {
@@ -168,7 +160,8 @@ export default function ScannerScreen({ navigation }: Props) {
     setManualVisible(false);
     setManualText('');
     navigation.navigate('Result', {
-      record: makeRecord({ imageUri: null, rawText: manualText, uld }),
+      entry: { imageUri: null, rawText: manualText, uld, manuallyEdited: false },
+      ride,
     });
   };
 
@@ -229,13 +222,26 @@ export default function ScannerScreen({ navigation }: Props) {
     <View style={styles.container}>
       <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} />
       <ScanFrameOverlay
-        hint={busy ? 'Reading photo…' : 'Align the ULD ID label (e.g. AKE12345LH) inside the frame'}
+        hint={
+          busy
+            ? 'Reading photo…'
+            : ride.length > 0
+              ? `Scan ULD ${ride.length + 1} for this ride (${ride.length}/${MAX_ULDS_PER_RIDE} added)`
+              : 'Align the ULD ID label (e.g. AKE12345LH) inside the frame'
+        }
       />
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
         <Pressable style={styles.iconButton} onPress={() => setTorch((t) => !t)}>
           <Text style={styles.iconButtonText}>{torch ? 'Torch on' : 'Torch off'}</Text>
         </Pressable>
+        {ride.length > 0 && (
+          <View style={styles.rideBadge}>
+            <Text style={styles.rideBadgeText}>
+              Ride: {ride.length}/{MAX_ULDS_PER_RIDE}
+            </Text>
+          </View>
+        )}
         <Pressable style={styles.iconButton} onPress={() => navigation.navigate('History')}>
           <Text style={styles.iconButtonText}>History</Text>
         </Pressable>
@@ -287,6 +293,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   iconButtonText: { color: 'white', fontSize: 13, fontWeight: '600' },
+  rideBadge: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  rideBadgeText: { color: 'white', fontSize: 13, fontWeight: '700' },
   shutter: {
     width: 76,
     height: 76,

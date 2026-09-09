@@ -83,7 +83,9 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
           onPress={onAssign}
           disabled={!selectedDriver || assigning}
         >
-          <Text style={styles.assignButtonText}>{assigning ? 'Assigning…' : 'Assign'}</Text>
+          <Text style={styles.assignButtonText}>
+            {assigning ? 'Assigning…' : selectedDriver ? `Assign to ${selectedDriver.name.split(' ')[0]}` : 'Select a driver'}
+          </Text>
         </Pressable>
       </View>
 

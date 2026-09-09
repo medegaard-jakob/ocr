@@ -3,6 +3,7 @@ import React, { useCallback, useState } from 'react';
 import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import BottomBar from '../components/BottomBar';
 import UldBadge from '../components/UldBadge';
 import { PRIORITY_META } from '../lib/dispatch';
 import { clearHistory, deleteRecord, loadHistory } from '../lib/storage';
@@ -114,6 +115,7 @@ export default function HistoryScreen({ navigation }: Props) {
           <Text style={styles.clearButtonText}>Clear all</Text>
         </Pressable>
       </View>
+      <BottomBar onBack={() => navigation.navigate('Home')} />
     </SafeAreaView>
   );
 }

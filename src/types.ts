@@ -25,6 +25,11 @@ export interface ScanRecord {
   resolvedAt?: number;
   /** Set when the supervisor sends a mock nudge to the assigned driver. */
   lastNudgedAt?: number;
+  /** Set when this task came from "Request empty ULD" rather than a scan --
+   *  there's no real serial number to show, only the type that was asked for. */
+  isEmptyRequest?: boolean;
+  /** The ULD type code requested. Only set when isEmptyRequest is true. */
+  emptyTypeCode?: string;
 }
 
 export type RootStackParamList = {

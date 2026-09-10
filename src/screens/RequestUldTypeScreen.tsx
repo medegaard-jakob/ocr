@@ -18,25 +18,6 @@ export default function RequestUldTypeScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.heading}>Which ULD type?</Text>
-        <View style={styles.list}>
-          {TYPES.map(([code, description], i) => {
-            const selected = code === typeCode;
-            return (
-              <Pressable
-                key={code}
-                style={[styles.row, selected && styles.rowSelected, i === TYPES.length - 1 && styles.rowLast]}
-                onPress={() => setTypeCode(code)}
-              >
-                <View style={[styles.codeChip, selected && styles.codeChipSelected]}>
-                  <Text style={[styles.codeChipText, selected && styles.codeChipTextSelected]}>{code}</Text>
-                </View>
-                <Text style={styles.rowText}>{description}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
         <Text style={styles.heading}>How many?</Text>
         <View style={styles.stepper}>
           <Pressable
@@ -54,6 +35,25 @@ export default function RequestUldTypeScreen({ route, navigation }: Props) {
           >
             <Text style={styles.stepperButtonText}>+</Text>
           </Pressable>
+        </View>
+
+        <Text style={styles.heading}>Which ULD type?</Text>
+        <View style={styles.list}>
+          {TYPES.map(([code, description], i) => {
+            const selected = code === typeCode;
+            return (
+              <Pressable
+                key={code}
+                style={[styles.row, selected && styles.rowSelected, i === TYPES.length - 1 && styles.rowLast]}
+                onPress={() => setTypeCode(code)}
+              >
+                <View style={[styles.codeChip, selected && styles.codeChipSelected]}>
+                  <Text style={[styles.codeChipText, selected && styles.codeChipTextSelected]}>{code}</Text>
+                </View>
+                <Text style={styles.rowText}>{description}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
 

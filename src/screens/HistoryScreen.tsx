@@ -128,11 +128,16 @@ export default function HistoryScreen({ navigation }: Props) {
                 <Image source={{ uri: primary.imageUri }} style={styles.thumb} />
               ) : (
                 <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                  <Text style={styles.thumbPlaceholderText}>manual</Text>
+                  <Text style={styles.thumbPlaceholderText}>{item.isEmptyRequest ? 'empty' : 'manual'}</Text>
                 </View>
               )}
               <View style={styles.cardBody}>
                 <View style={styles.topLine}>
+                  {item.isEmptyRequest && (
+                    <View style={[styles.statusPill, { backgroundColor: colors.accent }]}>
+                      <Text style={[styles.statusPillText, { color: 'white' }]}>EMPTY REQUEST</Text>
+                    </View>
+                  )}
                   {statusMeta && (
                     <View style={[styles.statusPill, { backgroundColor: statusMeta.bg }]}>
                       <Text style={[styles.statusPillText, { color: statusMeta.color }]}>
@@ -164,8 +169,10 @@ export default function HistoryScreen({ navigation }: Props) {
                 {item.dispatch && <Text style={styles.standText}>{item.dispatch.stand}</Text>}
 
                 <Text style={styles.code}>
-                  {primary.uld?.code ?? 'Unrecognized'}
-                  {extraCount > 0 && <Text style={styles.codeExtra}> +{extraCount} more</Text>}
+                  {item.isEmptyRequest
+                    ? `${item.ulds.length}× ${item.emptyTypeCode}`
+                    : primary.uld?.code ?? 'Unrecognized'}
+                  {!item.isEmptyRequest && extraCount > 0 && <Text style={styles.codeExtra}> +{extraCount} more</Text>}
                 </Text>
 
                 <View style={styles.bottomLine}>

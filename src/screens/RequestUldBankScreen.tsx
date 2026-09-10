@@ -4,34 +4,38 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MOCK_BANKS, generateDispatchInfo } from '../lib/dispatch';
 import { colors } from '../lib/theme';
-import { parseUldToken } from '../lib/uld';
 import type { RootStackParamList, ScanRecord, UldEntry } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RequestUldBank'>;
 
-// Empty-ULD requests don't have a real scanned serial number, so generate
-// well-formed placeholder codes -- this lets the request reuse every
-// existing task screen (Dispatch, Assign driver, Tasks list) unchanged.
-function generateEmptyUldEntries(typeCode: string, companyCode: string, amount: number): UldEntry[] {
-  return Array.from({ length: amount }, () => {
-    const serial = String(10000 + Math.floor(Math.random() * 89999));
-    const code = `${typeCode}${serial}${companyCode}`;
-    return { imageUri: null, rawText: code, uld: parseUldToken(code), manuallyEdited: false };
-  });
+// Empty-ULD requests aren't tied to real serial numbers -- nobody requesting
+// them knows which specific IDs are in stock, only the type and how many.
+// These placeholder entries just carry a count; the type itself is stored on
+// the record (isEmptyRequest/emptyTypeCode) so every screen can show "3x AKE"
+// instead of a fabricated full code.
+function generateEmptyUldEntries(amount: number): UldEntry[] {
+  return Array.from({ length: amount }, () => ({
+    imageUri: null,
+    rawText: '',
+    uld: null,
+    manuallyEdited: false,
+  }));
 }
 
 export default function RequestUldBankScreen({ route, navigation }: Props) {
-  const { companyCode, typeCode, amount } = route.params;
+  const { typeCode, amount } = route.params;
 
   const onSelectBank = (bank: string) => {
-    const ulds = generateEmptyUldEntries(typeCode, companyCode, amount);
-    const seed = ulds.map((u) => u.uld?.code ?? '').join('+');
+    const ulds = generateEmptyUldEntries(amount);
+    const seed = `empty-${typeCode}-${amount}-${Date.now()}-${Math.random()}`;
     const dispatch = { ...generateDispatchInfo(seed), stand: bank };
     const record: ScanRecord = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       timestamp: Date.now(),
       ulds,
       dispatch,
+      isEmptyRequest: true,
+      emptyTypeCode: typeCode,
     };
     navigation.navigate('Dispatch', { record });
   };

@@ -77,7 +77,9 @@ export default function DispatchScreen({ route, navigation }: Props) {
   const priorityMeta = PRIORITY_META[dispatch.priority];
   const windowMin = Math.round((dispatch.latestDeliveryTime - dispatch.startTime) / 60_000);
   const totalTimeLabel = windowMin < 60 ? `${windowMin} min` : `${Math.floor(windowMin / 60)}h ${windowMin % 60}m`;
-  const uldCountLabel = `${task.ulds.length} ULD${task.ulds.length > 1 ? 's' : ''}`;
+  const uldCountLabel = task.isEmptyRequest
+    ? `${task.ulds.length}× ${task.emptyTypeCode} (empty)`
+    : `${task.ulds.length} ULD${task.ulds.length > 1 ? 's' : ''}`;
 
   const onMarkResolved = async () => {
     const updated = { ...task, resolvedAt: Date.now() };
@@ -120,15 +122,22 @@ export default function DispatchScreen({ route, navigation }: Props) {
             {uldCountLabel} <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
           </Text>
 
-          <View style={styles.uldChipRow}>
-            {codes.map((code, i) => (
-              <View key={i} style={styles.uldChip}>
-                <Text style={styles.uldChipText}>{code}</Text>
-              </View>
-            ))}
-          </View>
+          {!task.isEmptyRequest && (
+            <View style={styles.uldChipRow}>
+              {codes.map((code, i) => (
+                <View key={i} style={styles.uldChip}>
+                  <Text style={styles.uldChipText}>{code}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.metaRow}>
+            {task.isEmptyRequest && (
+              <View style={[styles.statusBadge, { backgroundColor: colors.accent }]}>
+                <Text style={[styles.statusBadgeText, { color: 'white' }]}>EMPTY REQUEST</Text>
+              </View>
+            )}
             {statusMeta && (
               <View style={[styles.statusBadge, { backgroundColor: statusMeta.bg }]}>
                 <Text style={[styles.statusBadgeText, { color: statusMeta.color }]}>

@@ -74,16 +74,31 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
       <Text style={styles.heading}>{record.dispatch?.stand ?? 'Stand'} driver team</Text>
 
       <View style={styles.uldSection}>
-        <Text style={styles.uldSectionLabel}>
-          {record.ulds.length} ULD{record.ulds.length > 1 ? 's' : ''} in this task
-        </Text>
-        <View style={styles.uldChipRow}>
-          {record.ulds.map((entry, i) => (
-            <View key={i} style={styles.uldChip}>
-              <Text style={styles.uldChipText}>{entry.uld?.code ?? 'Unrecognized'}</Text>
+        {record.isEmptyRequest ? (
+          <>
+            <Text style={styles.uldSectionLabel}>Empty ULDs requested</Text>
+            <View style={styles.uldChipRow}>
+              <View style={styles.uldChip}>
+                <Text style={styles.uldChipText}>
+                  {record.ulds.length}× {record.emptyTypeCode}
+                </Text>
+              </View>
             </View>
-          ))}
-        </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.uldSectionLabel}>
+              {record.ulds.length} ULD{record.ulds.length > 1 ? 's' : ''} in this task
+            </Text>
+            <View style={styles.uldChipRow}>
+              {record.ulds.map((entry, i) => (
+                <View key={i} style={styles.uldChip}>
+                  <Text style={styles.uldChipText}>{entry.uld?.code ?? 'Unrecognized'}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
       </View>
 
       <FlatList

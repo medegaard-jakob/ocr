@@ -63,11 +63,18 @@ export default function DispatchScreen({ route, navigation }: Props) {
             </View>
           </View>
           <Text style={styles.routeLabel}>
-            {codes.join(', ')} <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
+            {uldCountLabel} <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
           </Text>
 
+          <View style={styles.uldChipRow}>
+            {codes.map((code, i) => (
+              <View key={i} style={styles.uldChip}>
+                <Text style={styles.uldChipText}>{code}</Text>
+              </View>
+            ))}
+          </View>
+
           <View style={styles.metaRow}>
-            <Text style={styles.uldCountBadge}>{uldCountLabel}</Text>
             <View style={[styles.priorityBadge, { backgroundColor: priorityMeta.bg }]}>
               <Text style={[styles.priorityBadgeText, { color: priorityMeta.color }]}>{priorityMeta.label}</Text>
             </View>
@@ -155,17 +162,17 @@ const styles = StyleSheet.create({
   durationChipText: { color: colors.textPrimary, fontSize: 12.5, fontWeight: '600' },
   routeLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', letterSpacing: 0.5 },
   routeLabelMuted: { color: colors.textSecondary, fontWeight: '400' },
-  metaRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  uldCountBadge: {
-    color: colors.textSecondary,
-    fontSize: 12.5,
-    fontWeight: '600',
+  uldChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  uldChip: {
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
+  uldChipText: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', letterSpacing: 0.5 },
+  metaRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
   priorityBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   priorityBadgeText: { fontSize: 12.5, fontWeight: '700' },
   timesCard: {

@@ -36,4 +36,7 @@ export type RootStackParamList = {
   Dispatch: { record: ScanRecord };
   AssignDriver: { record: ScanRecord };
   History: undefined;
+  RequestUldCompany: undefined;
+  RequestUldType: { companyCode: string };
+  RequestUldBank: { companyCode: string; typeCode: string; amount: number };
 };

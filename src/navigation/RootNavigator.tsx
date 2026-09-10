@@ -5,6 +5,9 @@ import AssignDriverScreen from '../screens/AssignDriverScreen';
 import DispatchScreen from '../screens/DispatchScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import HomeScreen from '../screens/HomeScreen';
+import RequestUldBankScreen from '../screens/RequestUldBankScreen';
+import RequestUldCompanyScreen from '../screens/RequestUldCompanyScreen';
+import RequestUldTypeScreen from '../screens/RequestUldTypeScreen';
 import ResultScreen from '../screens/ResultScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import { colors } from '../lib/theme';
@@ -41,6 +44,9 @@ export default function RootNavigator() {
         <Stack.Screen name="Dispatch" component={DispatchScreen} options={{ title: 'Transportation order' }} />
         <Stack.Screen name="AssignDriver" component={AssignDriverScreen} options={{ title: 'Driver team' }} />
         <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'Tasks' }} />
+        <Stack.Screen name="RequestUldCompany" component={RequestUldCompanyScreen} options={{ title: 'Select company' }} />
+        <Stack.Screen name="RequestUldType" component={RequestUldTypeScreen} options={{ title: 'ULD type & amount' }} />
+        <Stack.Screen name="RequestUldBank" component={RequestUldBankScreen} options={{ title: 'Deliver to' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

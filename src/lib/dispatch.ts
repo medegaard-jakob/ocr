@@ -68,6 +68,11 @@ function mulberry32(seed: number) {
   };
 }
 
+// Where a "Request empty ULD" task can be delivered to. Deliberately just
+// names -- we have no real way to know how many empties are sitting at a
+// bank, so this isn't a stock/capacity picker.
+export const MOCK_BANKS = ['Bank 1', 'Bank 2', 'Bank 3'];
+
 const STAND_PREFIXES = ['A', 'B', 'C', 'D'];
 
 export function generateDispatchInfo(uldCode: string, now: number = Date.now()): DispatchInfo {

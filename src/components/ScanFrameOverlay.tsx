@@ -5,17 +5,17 @@ import { StyleSheet, Text, View } from 'react-native';
  * Dims everything outside a centered guide rectangle and labels it, to help
  * the user frame the ULD placard the way a real scanning UI would.
  */
-export default function ScanFrameOverlay({ hint }: { hint: string }) {
+export default function ScanFrameOverlay({ hint, accentColor = '#4ADE80' }: { hint: string; accentColor?: string }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <View style={styles.dim} />
       <View style={styles.middleRow}>
         <View style={styles.dim} />
         <View style={styles.frame}>
-          <View style={[styles.corner, styles.cornerTL]} />
-          <View style={[styles.corner, styles.cornerTR]} />
-          <View style={[styles.corner, styles.cornerBL]} />
-          <View style={[styles.corner, styles.cornerBR]} />
+          <View style={[styles.corner, styles.cornerTL, { borderColor: accentColor }]} />
+          <View style={[styles.corner, styles.cornerTR, { borderColor: accentColor }]} />
+          <View style={[styles.corner, styles.cornerBL, { borderColor: accentColor }]} />
+          <View style={[styles.corner, styles.cornerBR, { borderColor: accentColor }]} />
         </View>
         <View style={styles.dim} />
       </View>
@@ -47,7 +47,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: CORNER,
     height: CORNER,
-    borderColor: '#4ADE80',
   },
   cornerTL: { top: 0, left: 0, borderTopWidth: BORDER, borderLeftWidth: BORDER },
   cornerTR: { top: 0, right: 0, borderTopWidth: BORDER, borderRightWidth: BORDER },

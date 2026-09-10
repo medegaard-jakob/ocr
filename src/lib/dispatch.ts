@@ -94,6 +94,40 @@ export function generateDispatchInfo(uldCode: string, now: number = Date.now()):
   return { stand, startTime, latestDeliveryTime, priority };
 }
 
+const TEST_TYPE_CODES = ['AKE', 'PMC', 'ALF', 'DPE'];
+const TEST_AIRLINE_CODES = ['LH', 'BA', 'EK', 'DL'];
+
+/**
+ * A fully-formed, already-overdue DispatchInfo for exercising the alert UI
+ * on demand, without waiting for a real task's deadline to actually pass.
+ */
+export function generateTestOverdueDispatch(now: number = Date.now()): DispatchInfo {
+  const prefix = STAND_PREFIXES[Math.floor(Math.random() * STAND_PREFIXES.length)];
+  const number = 1 + Math.floor(Math.random() * 32);
+  const priorityRoll = Math.random();
+  const priority: Priority = priorityRoll < 0.15 ? 'aog' : priorityRoll < 0.5 ? 'priority' : 'standard';
+  const overdueByMin = 5 + Math.floor(Math.random() * 40);
+
+  return {
+    stand: `Stand ${prefix}${number}`,
+    startTime: now - (overdueByMin + 30) * 60_000,
+    latestDeliveryTime: now - overdueByMin * 60_000,
+    priority,
+  };
+}
+
+/** A random-looking ULD code, well-formed enough to pass parseUldToken. */
+export function generateTestUldCode(): string {
+  const type = TEST_TYPE_CODES[Math.floor(Math.random() * TEST_TYPE_CODES.length)];
+  const serial = String(10000 + Math.floor(Math.random() * 89999));
+  const airline = TEST_AIRLINE_CODES[Math.floor(Math.random() * TEST_AIRLINE_CODES.length)];
+  return `${type}${serial}${airline}`;
+}
+
+export function pickRandomDriver(): Driver {
+  return MOCK_DRIVERS[Math.floor(Math.random() * MOCK_DRIVERS.length)];
+}
+
 export function formatClock(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -107,16 +141,16 @@ export function formatRelative(ts: number, from: number = Date.now()): string {
   return m === 0 ? `in ${h}h` : `in ${h}h ${m}m`;
 }
 
-export type TaskStatus = 'overdue' | 'at_risk' | 'on_time' | 'delivered';
+export type TaskStatus = 'overdue' | 'at_risk' | 'on_time' | 'resolved';
 
 // Warn a bit before the deadline, not just after it's blown.
 const AT_RISK_WINDOW_MS = 15 * 60_000;
 
 export function getTaskStatus(
-  record: { dispatch?: DispatchInfo; deliveredAt?: number },
+  record: { dispatch?: DispatchInfo; resolvedAt?: number },
   now: number = Date.now(),
 ): TaskStatus {
-  if (record.deliveredAt) return 'delivered';
+  if (record.resolvedAt) return 'resolved';
   if (!record.dispatch) return 'on_time';
   const remaining = record.dispatch.latestDeliveryTime - now;
   if (remaining < 0) return 'overdue';
@@ -129,7 +163,7 @@ export function getTaskStatus(
 export const TASK_STATUS_META: Record<Exclude<TaskStatus, 'on_time'>, { label: string; color: string; bg: string }> = {
   overdue: { label: 'OVERDUE', color: '#FFFFFF', bg: colors.danger },
   at_risk: { label: 'AT RISK', color: '#FFFFFF', bg: colors.warning },
-  delivered: { label: 'Delivered', color: '#FFFFFF', bg: colors.success },
+  resolved: { label: 'Resolved', color: '#FFFFFF', bg: colors.success },
 };
 
 /** e.g. "18m overdue" / "1h 5m overdue". */

@@ -21,8 +21,8 @@ export interface ScanRecord {
   dispatch?: DispatchInfo;
   /** Driver assigned to move it. Set once dispatch is confirmed. */
   driver?: Driver;
-  /** Set once the supervisor marks this task delivered; stops it counting as overdue. */
-  deliveredAt?: number;
+  /** Set once the supervisor marks this task resolved; stops it counting as overdue. */
+  resolvedAt?: number;
   /** Set when the supervisor sends a mock nudge to the assigned driver. */
   lastNudgedAt?: number;
 }

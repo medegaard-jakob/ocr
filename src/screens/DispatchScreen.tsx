@@ -79,8 +79,8 @@ export default function DispatchScreen({ route, navigation }: Props) {
   const totalTimeLabel = windowMin < 60 ? `${windowMin} min` : `${Math.floor(windowMin / 60)}h ${windowMin % 60}m`;
   const uldCountLabel = `${task.ulds.length} ULD${task.ulds.length > 1 ? 's' : ''}`;
 
-  const onMarkDelivered = async () => {
-    const updated = { ...task, deliveredAt: Date.now() };
+  const onMarkResolved = async () => {
+    const updated = { ...task, resolvedAt: Date.now() };
     setTask(updated);
     try {
       await saveRecord(updated);
@@ -165,9 +165,9 @@ export default function DispatchScreen({ route, navigation }: Props) {
       </View>
 
       <View style={styles.footer}>
-        {status === 'delivered' ? (
-          <View style={styles.deliveredBanner}>
-            <Text style={styles.deliveredBannerText}>Delivered at {formatClock(task.deliveredAt!)}</Text>
+        {status === 'resolved' ? (
+          <View style={styles.resolvedBanner}>
+            <Text style={styles.resolvedBannerText}>Resolved at {formatClock(task.resolvedAt!)}</Text>
           </View>
         ) : (
           <>
@@ -183,8 +183,8 @@ export default function DispatchScreen({ route, navigation }: Props) {
                 <Pressable style={styles.secondaryActionButton} onPress={onNudge}>
                   <Text style={styles.secondaryActionButtonText}>Nudge driver</Text>
                 </Pressable>
-                <Pressable style={styles.secondaryActionButton} onPress={onMarkDelivered}>
-                  <Text style={styles.secondaryActionButtonText}>Mark delivered</Text>
+                <Pressable style={styles.secondaryActionButton} onPress={onMarkResolved}>
+                  <Text style={styles.secondaryActionButtonText}>Mark resolved</Text>
                 </Pressable>
               </View>
             )}
@@ -337,8 +337,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryActionButtonText: { color: colors.textPrimary, fontWeight: '700', fontSize: 16 },
-  deliveredBanner: { backgroundColor: colors.success, borderRadius: 10, paddingVertical: 18, alignItems: 'center' },
-  deliveredBannerText: { color: 'white', fontWeight: '700', fontSize: 18 },
+  resolvedBanner: { backgroundColor: colors.success, borderRadius: 10, paddingVertical: 18, alignItems: 'center' },
+  resolvedBannerText: { color: 'white', fontWeight: '700', fontSize: 18 },
   nudgeToast: {
     position: 'absolute',
     bottom: 195,

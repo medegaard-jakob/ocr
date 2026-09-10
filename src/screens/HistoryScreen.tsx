@@ -5,25 +5,50 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import BottomBar from '../components/BottomBar';
 import { showAlert } from '../lib/alert';
-import { PRIORITY_META, TASK_STATUS_META, formatOverdue, getTaskStatus, type TaskStatus } from '../lib/dispatch';
-import { clearHistory, deleteRecord, loadHistory } from '../lib/storage';
+import {
+  PRIORITY_META,
+  TASK_STATUS_META,
+  formatOverdue,
+  generateTestOverdueDispatch,
+  generateTestUldCode,
+  getTaskStatus,
+  pickRandomDriver,
+  type TaskStatus,
+} from '../lib/dispatch';
+import { clearHistory, deleteRecord, loadHistory, saveRecord } from '../lib/storage';
 import { colors } from '../lib/theme';
+import { parseUldToken } from '../lib/uld';
 import type { RootStackParamList, ScanRecord } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'History'>;
 
-const STATUS_RANK: Record<TaskStatus, number> = { overdue: 0, at_risk: 1, on_time: 2, delivered: 3 };
+const STATUS_RANK: Record<TaskStatus, number> = { overdue: 0, at_risk: 1, on_time: 2, resolved: 3 };
 
 // Most urgent first: overdue, then at-risk, then on-time by soonest deadline;
-// delivered tasks sink to the bottom, most recently delivered first.
+// resolved tasks sink to the bottom, most recently resolved first.
 function compareTasks(a: ScanRecord, b: ScanRecord, now: number): number {
   const sa = getTaskStatus(a, now);
   const sb = getTaskStatus(b, now);
   if (sa !== sb) return STATUS_RANK[sa] - STATUS_RANK[sb];
-  if (sa === 'delivered') return (b.deliveredAt ?? 0) - (a.deliveredAt ?? 0);
+  if (sa === 'resolved') return (b.resolvedAt ?? 0) - (a.resolvedAt ?? 0);
   const da = a.dispatch?.latestDeliveryTime ?? a.timestamp;
   const db = b.dispatch?.latestDeliveryTime ?? b.timestamp;
   return da - db;
+}
+
+// Testing convenience: drops in a fresh, already-overdue mock task so the
+// alert UI can be exercised on demand instead of waiting for a real deadline
+// to pass. Not part of the real scan/dispatch flow.
+function generateTestOverdueTask(): ScanRecord {
+  const now = Date.now();
+  const code = generateTestUldCode();
+  return {
+    id: `test-${now}-${Math.floor(Math.random() * 100000)}`,
+    timestamp: now,
+    ulds: [{ imageUri: null, rawText: code, uld: parseUldToken(code), manuallyEdited: false }],
+    dispatch: generateTestOverdueDispatch(now),
+    driver: pickRandomDriver(),
+  };
 }
 
 export default function HistoryScreen({ navigation }: Props) {
@@ -72,6 +97,10 @@ export default function HistoryScreen({ navigation }: Props) {
         },
       },
     ]);
+  };
+
+  const onAddTestAlert = async () => {
+    setRecords(await saveRecord(generateTestOverdueTask()));
   };
 
   const sortedRecords = [...records].sort((a, b) => compareTasks(a, b, now));
@@ -160,11 +189,16 @@ export default function HistoryScreen({ navigation }: Props) {
         }}
       />
       <View style={styles.footer}>
-        <Pressable style={styles.scanButton} onPress={() => navigation.navigate('Scanner')}>
-          <Text style={styles.scanButtonText}>Scan another</Text>
-        </Pressable>
-        <Pressable style={styles.clearButton} onPress={onClearAll}>
-          <Text style={styles.clearButtonText}>Clear all</Text>
+        <View style={styles.footerRow}>
+          <Pressable style={styles.scanButton} onPress={() => navigation.navigate('Scanner')}>
+            <Text style={styles.scanButtonText}>Scan another</Text>
+          </Pressable>
+          <Pressable style={styles.clearButton} onPress={onClearAll}>
+            <Text style={styles.clearButtonText}>Clear all</Text>
+          </Pressable>
+        </View>
+        <Pressable style={styles.testAlertButton} onPress={onAddTestAlert}>
+          <Text style={styles.testAlertButtonText}>+ Add test alert</Text>
         </Pressable>
       </View>
       <BottomBar onBack={() => navigation.navigate('Home')} />
@@ -215,14 +249,23 @@ const styles = StyleSheet.create({
   priorityBadge: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 },
   priorityBadgeText: { fontSize: 13, fontWeight: '700' },
   footer: {
-    flexDirection: 'row',
     gap: 12,
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  footerRow: { flexDirection: 'row', gap: 12 },
   scanButton: { flex: 2, paddingVertical: 18, borderRadius: 10, backgroundColor: colors.accentDeep, alignItems: 'center' },
   scanButtonText: { color: 'white', fontWeight: '700', fontSize: 17 },
   clearButton: { flex: 1, paddingVertical: 18, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   clearButtonText: { color: colors.danger, fontWeight: '700', fontSize: 17 },
+  testAlertButton: {
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.textSecondary,
+    alignItems: 'center',
+  },
+  testAlertButtonText: { color: colors.textSecondary, fontWeight: '700', fontSize: 15 },
 });

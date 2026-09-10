@@ -72,6 +72,19 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <Text style={styles.heading}>{record.dispatch?.stand ?? 'Stand'} driver team</Text>
 
+      <View style={styles.uldSection}>
+        <Text style={styles.uldSectionLabel}>
+          {record.ulds.length} ULD{record.ulds.length > 1 ? 's' : ''} in this task
+        </Text>
+        <View style={styles.uldChipRow}>
+          {record.ulds.map((entry, i) => (
+            <View key={i} style={styles.uldChip}>
+              <Text style={styles.uldChipText}>{entry.uld?.code ?? 'Unrecognized'}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
       <FlatList
         style={styles.list}
         contentContainerStyle={styles.listContent}
@@ -140,6 +153,18 @@ function DriverRow({ driver, selected, onPress }: { driver: Driver; selected: bo
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   heading: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, paddingHorizontal: 20, paddingTop: 16 },
+  uldSection: { paddingHorizontal: 20, paddingTop: 12, gap: 8 },
+  uldSectionLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase' },
+  uldChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  uldChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  uldChipText: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', letterSpacing: 0.5 },
   list: { flex: 1 },
   listContent: { padding: 20, gap: 10 },
   row: {

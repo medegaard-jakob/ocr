@@ -15,11 +15,11 @@ export default function BottomBar({ onBack }: { onBack: () => void }) {
 
 const styles = StyleSheet.create({
   bar: {
-    height: 52,
+    height: 64,
     backgroundColor: colors.accentDeep,
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
-  backButton: { alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 4 },
-  chevron: { color: 'white', fontSize: 26, fontWeight: '300', lineHeight: 26 },
+  backButton: { alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 10 },
+  chevron: { color: 'white', fontSize: 32, fontWeight: '300', lineHeight: 32 },
 });

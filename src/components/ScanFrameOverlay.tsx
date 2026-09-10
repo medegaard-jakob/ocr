@@ -56,8 +56,8 @@ const styles = StyleSheet.create({
   hint: {
     color: 'white',
     marginTop: 16,
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     textAlign: 'center',
     paddingHorizontal: 32,
   },

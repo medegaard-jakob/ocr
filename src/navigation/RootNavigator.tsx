@@ -40,7 +40,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Scan result' }} />
         <Stack.Screen name="Dispatch" component={DispatchScreen} options={{ title: 'Transportation order' }} />
         <Stack.Screen name="AssignDriver" component={AssignDriverScreen} options={{ title: 'Driver team' }} />
-        <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'Driver overview' }} />
+        <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'Tasks' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

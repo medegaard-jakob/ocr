@@ -16,6 +16,7 @@ export const colors = {
   disabled: '#3A5566',
   success: '#3FBF7F',
   danger: '#E05A5A',
+  warning: '#D97706',
 };
 
 export const spacing = {

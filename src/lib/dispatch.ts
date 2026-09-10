@@ -6,6 +6,8 @@
  * demo feel consistent across repeated scans instead of re-randomizing.
  */
 
+import { colors } from './theme';
+
 export type Priority = 'standard' | 'priority' | 'aog';
 
 export interface DispatchInfo {
@@ -103,4 +105,38 @@ export function formatRelative(ts: number, from: number = Date.now()): string {
   const h = Math.floor(diffMin / 60);
   const m = diffMin % 60;
   return m === 0 ? `in ${h}h` : `in ${h}h ${m}m`;
+}
+
+export type TaskStatus = 'overdue' | 'at_risk' | 'on_time' | 'delivered';
+
+// Warn a bit before the deadline, not just after it's blown.
+const AT_RISK_WINDOW_MS = 15 * 60_000;
+
+export function getTaskStatus(
+  record: { dispatch?: DispatchInfo; deliveredAt?: number },
+  now: number = Date.now(),
+): TaskStatus {
+  if (record.deliveredAt) return 'delivered';
+  if (!record.dispatch) return 'on_time';
+  const remaining = record.dispatch.latestDeliveryTime - now;
+  if (remaining < 0) return 'overdue';
+  if (remaining <= AT_RISK_WINDOW_MS) return 'at_risk';
+  return 'on_time';
+}
+
+// Solid, saturated fills (vs. the pastel PRIORITY_META pills) so a task's
+// timing status reads as the more urgent signal at a glance.
+export const TASK_STATUS_META: Record<Exclude<TaskStatus, 'on_time'>, { label: string; color: string; bg: string }> = {
+  overdue: { label: 'OVERDUE', color: '#FFFFFF', bg: colors.danger },
+  at_risk: { label: 'AT RISK', color: '#FFFFFF', bg: colors.warning },
+  delivered: { label: 'Delivered', color: '#FFFFFF', bg: colors.success },
+};
+
+/** e.g. "18m overdue" / "1h 5m overdue". */
+export function formatOverdue(latestDeliveryTime: number, now: number = Date.now()): string {
+  const diffMin = Math.max(0, Math.round((now - latestDeliveryTime) / 60_000));
+  if (diffMin < 60) return `${diffMin}m overdue`;
+  const h = Math.floor(diffMin / 60);
+  const m = diffMin % 60;
+  return m === 0 ? `${h}h overdue` : `${h}h ${m}m overdue`;
 }

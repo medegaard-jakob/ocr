@@ -1,8 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Pressable } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getTaskStatus } from '../lib/dispatch';
+import { loadHistory } from '../lib/storage';
 import { colors } from '../lib/theme';
 import type { RootStackParamList } from '../types';
 
@@ -14,10 +16,33 @@ interface MenuItem {
 }
 
 export default function HomeScreen({ navigation }: Props) {
+  const [overdueCount, setOverdueCount] = useState(0);
+
+  // Poll while this screen is focused so the alert appears/updates without
+  // needing to leave and come back -- a supervisor may just sit here.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const refresh = () => {
+        loadHistory().then((records) => {
+          if (!active) return;
+          const now = Date.now();
+          setOverdueCount(records.filter((r) => getTaskStatus(r, now) === 'overdue').length);
+        });
+      };
+      refresh();
+      const interval = setInterval(refresh, 30_000);
+      return () => {
+        active = false;
+        clearInterval(interval);
+      };
+    }, []),
+  );
+
   const items: MenuItem[] = [
     { label: 'Make task', onPress: () => navigation.navigate('Scanner') },
     { label: 'Request empty ULD' },
-    { label: 'Driver overview', onPress: () => navigation.navigate('History') },
+    { label: 'Tasks', onPress: () => navigation.navigate('History') },
     { label: 'Full Can Store overview' },
     { label: 'Flight overview' },
     { label: 'Via' },
@@ -26,6 +51,13 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {overdueCount > 0 && (
+        <Pressable style={styles.alertBanner} onPress={() => navigation.navigate('History')}>
+          <Text style={styles.alertBannerText}>
+            ⚠ {overdueCount} task{overdueCount > 1 ? 's' : ''} overdue — tap to view
+          </Text>
+        </Pressable>
+      )}
       <View style={styles.spacer} />
       <View style={styles.menu}>
         {items.map((item, i) => (
@@ -45,6 +77,13 @@ export default function HomeScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  alertBanner: {
+    backgroundColor: colors.danger,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  alertBannerText: { color: 'white', fontSize: 18, fontWeight: '700', textAlign: 'center' },
   spacer: { height: 140 },
   menu: {
     marginHorizontal: 20,

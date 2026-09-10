@@ -4,21 +4,47 @@ import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import BottomBar from '../components/BottomBar';
-import UldBadge from '../components/UldBadge';
 import { showAlert } from '../lib/alert';
-import { PRIORITY_META } from '../lib/dispatch';
+import { PRIORITY_META, TASK_STATUS_META, formatOverdue, getTaskStatus, type TaskStatus } from '../lib/dispatch';
 import { clearHistory, deleteRecord, loadHistory } from '../lib/storage';
 import { colors } from '../lib/theme';
 import type { RootStackParamList, ScanRecord } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'History'>;
 
+const STATUS_RANK: Record<TaskStatus, number> = { overdue: 0, at_risk: 1, on_time: 2, delivered: 3 };
+
+// Most urgent first: overdue, then at-risk, then on-time by soonest deadline;
+// delivered tasks sink to the bottom, most recently delivered first.
+function compareTasks(a: ScanRecord, b: ScanRecord, now: number): number {
+  const sa = getTaskStatus(a, now);
+  const sb = getTaskStatus(b, now);
+  if (sa !== sb) return STATUS_RANK[sa] - STATUS_RANK[sb];
+  if (sa === 'delivered') return (b.deliveredAt ?? 0) - (a.deliveredAt ?? 0);
+  const da = a.dispatch?.latestDeliveryTime ?? a.timestamp;
+  const db = b.dispatch?.latestDeliveryTime ?? b.timestamp;
+  return da - db;
+}
+
 export default function HistoryScreen({ navigation }: Props) {
   const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [now, setNow] = useState(Date.now());
 
   useFocusEffect(
     useCallback(() => {
-      loadHistory().then(setRecords);
+      let active = true;
+      const refresh = () => {
+        loadHistory().then((r) => {
+          if (active) setRecords(r);
+        });
+        setNow(Date.now());
+      };
+      refresh();
+      const interval = setInterval(refresh, 30_000);
+      return () => {
+        active = false;
+        clearInterval(interval);
+      };
     }, []),
   );
 
@@ -48,17 +74,21 @@ export default function HistoryScreen({ navigation }: Props) {
     ]);
   };
 
+  const sortedRecords = [...records].sort((a, b) => compareTasks(a, b, now));
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <FlatList
-        data={records}
+        data={sortedRecords}
         keyExtractor={(r) => r.id}
-        contentContainerStyle={records.length === 0 && styles.emptyContainer}
-        ListEmptyComponent={<Text style={styles.emptyText}>No scans saved yet</Text>}
+        contentContainerStyle={sortedRecords.length === 0 && styles.emptyContainer}
+        ListEmptyComponent={<Text style={styles.emptyText}>No tasks yet</Text>}
         renderItem={({ item }) => {
           const primary = item.ulds[0];
           const extraCount = item.ulds.length - 1;
           const anyManuallyEdited = item.ulds.some((u) => u.manuallyEdited);
+          const status = getTaskStatus(item, now);
+          const statusMeta = status !== 'on_time' ? TASK_STATUS_META[status] : null;
           return (
             <Pressable
               style={styles.card}
@@ -73,13 +103,16 @@ export default function HistoryScreen({ navigation }: Props) {
                 </View>
               )}
               <View style={styles.cardBody}>
-                <Text style={styles.code}>
-                  {primary.uld?.code ?? 'Unrecognized'}
-                  {extraCount > 0 && <Text style={styles.codeExtra}> +{extraCount} more</Text>}
-                </Text>
-                <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleString()}</Text>
-                <View style={styles.badgeRow}>
-                  {primary.uld && <UldBadge uld={primary.uld} />}
+                <View style={styles.topLine}>
+                  {statusMeta && (
+                    <View style={[styles.statusPill, { backgroundColor: statusMeta.bg }]}>
+                      <Text style={[styles.statusPillText, { color: statusMeta.color }]}>
+                        {status === 'overdue' && item.dispatch
+                          ? formatOverdue(item.dispatch.latestDeliveryTime, now)
+                          : statusMeta.label}
+                      </Text>
+                    </View>
+                  )}
                   {item.dispatch && (
                     <View
                       style={[
@@ -97,18 +130,30 @@ export default function HistoryScreen({ navigation }: Props) {
                       </Text>
                     </View>
                   )}
+                </View>
+
+                {item.dispatch && <Text style={styles.standText}>{item.dispatch.stand}</Text>}
+
+                <Text style={styles.code}>
+                  {primary.uld?.code ?? 'Unrecognized'}
+                  {extraCount > 0 && <Text style={styles.codeExtra}> +{extraCount} more</Text>}
+                </Text>
+
+                <View style={styles.bottomLine}>
+                  {item.driver && (
+                    <View style={styles.driverChip}>
+                      <Text style={styles.driverChipText}>
+                        {item.driver.name} · {item.driver.vehicle}
+                      </Text>
+                    </View>
+                  )}
                   {anyManuallyEdited && (
                     <View style={styles.editedBadge}>
-                      <Text style={styles.editedBadgeText}>Manually edited</Text>
+                      <Text style={styles.editedBadgeText}>Edited</Text>
                     </View>
                   )}
                 </View>
-                {item.dispatch && (
-                  <Text style={styles.dispatchLine}>
-                    {item.dispatch.stand}
-                    {item.driver ? ` · ${item.driver.name} (${item.driver.vehicle})` : ' · unassigned'}
-                  </Text>
-                )}
+                <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleString()}</Text>
               </View>
             </Pressable>
           );
@@ -142,10 +187,23 @@ const styles = StyleSheet.create({
   thumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   thumbPlaceholderText: { fontSize: 12, color: colors.textMuted },
   cardBody: { flex: 1, gap: 5, justifyContent: 'center' },
+  topLine: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statusPill: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 },
+  statusPillText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  standText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
   code: { fontSize: 23, fontWeight: '700', color: colors.textPrimary, letterSpacing: 1 },
   codeExtra: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0 },
   timestamp: { fontSize: 13, color: colors.textSecondary },
-  badgeRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  bottomLine: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  driverChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+  },
+  driverChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   editedBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 11,
@@ -156,7 +214,6 @@ const styles = StyleSheet.create({
   editedBadgeText: { color: 'white', fontSize: 13, fontWeight: '600' },
   priorityBadge: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 },
   priorityBadgeText: { fontSize: 13, fontWeight: '700' },
-  dispatchLine: { fontSize: 15, color: colors.textSecondary, marginTop: 2 },
   footer: {
     flexDirection: 'row',
     gap: 12,

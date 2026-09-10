@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getTaskStatus } from '../lib/dispatch';
 import { loadHistory } from '../lib/storage';
@@ -58,19 +58,21 @@ export default function HomeScreen({ navigation }: Props) {
           </Text>
         </Pressable>
       )}
-      <View style={styles.spacer} />
-      <View style={styles.menu}>
-        {items.map((item, i) => (
-          <Pressable
-            key={item.label}
-            style={[styles.row, i === items.length - 1 && styles.rowLast]}
-            onPress={item.onPress}
-            disabled={!item.onPress}
-          >
-            <Text style={[styles.rowText, !item.onPress && styles.rowTextDisabled]}>{item.label}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.spacer} />
+        <View style={styles.menu}>
+          {items.map((item, i) => (
+            <Pressable
+              key={item.label}
+              style={[styles.row, i === items.length - 1 && styles.rowLast]}
+              onPress={item.onPress}
+              disabled={!item.onPress}
+            >
+              <Text style={[styles.rowText, !item.onPress && styles.rowTextDisabled]}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -84,6 +86,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   alertBannerText: { color: 'white', fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  scrollContent: { paddingBottom: 40 },
   spacer: { height: 140 },
   menu: {
     marginHorizontal: 20,

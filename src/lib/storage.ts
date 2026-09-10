@@ -14,23 +14,31 @@ function migrateRecord(raw: unknown): ScanRecord | null {
   const r = raw as Record<string, unknown>;
   if (typeof r.id !== 'string' || typeof r.timestamp !== 'number') return null;
 
-  if (Array.isArray(r.ulds)) {
-    return r as unknown as ScanRecord;
+  // The "mark delivered" field was renamed to resolvedAt. Without this, a
+  // task marked done before that rename has no resolvedAt the app
+  // recognizes, so it silently falls back to overdue again.
+  const { deliveredAt, ...rest } = r;
+  const resolvedAt =
+    typeof rest.resolvedAt === 'number' ? rest.resolvedAt : typeof deliveredAt === 'number' ? deliveredAt : undefined;
+
+  if (Array.isArray(rest.ulds)) {
+    return { ...(rest as unknown as ScanRecord), resolvedAt };
   }
 
   // Legacy single-ULD shape.
   const entry: UldEntry = {
-    imageUri: typeof r.imageUri === 'string' ? r.imageUri : null,
-    rawText: typeof r.rawText === 'string' ? r.rawText : '',
-    uld: (r.uld as UldEntry['uld']) ?? null,
-    manuallyEdited: r.manuallyEdited === true,
+    imageUri: typeof rest.imageUri === 'string' ? rest.imageUri : null,
+    rawText: typeof rest.rawText === 'string' ? rest.rawText : '',
+    uld: (rest.uld as UldEntry['uld']) ?? null,
+    manuallyEdited: rest.manuallyEdited === true,
   };
   return {
     id: r.id,
     timestamp: r.timestamp,
     ulds: [entry],
-    dispatch: r.dispatch as ScanRecord['dispatch'],
-    driver: r.driver as ScanRecord['driver'],
+    dispatch: rest.dispatch as ScanRecord['dispatch'],
+    driver: rest.driver as ScanRecord['driver'],
+    resolvedAt,
   };
 }
 

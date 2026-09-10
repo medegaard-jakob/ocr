@@ -1,10 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useState } from 'react';
-import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import BottomBar from '../components/BottomBar';
 import UldBadge from '../components/UldBadge';
+import { showAlert } from '../lib/alert';
 import { PRIORITY_META } from '../lib/dispatch';
 import { clearHistory, deleteRecord, loadHistory } from '../lib/storage';
 import { colors } from '../lib/theme';
@@ -22,7 +23,7 @@ export default function HistoryScreen({ navigation }: Props) {
   );
 
   const onDelete = (id: string) => {
-    Alert.alert('Delete scan?', undefined, [
+    showAlert('Delete scan?', undefined, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -34,7 +35,7 @@ export default function HistoryScreen({ navigation }: Props) {
 
   const onClearAll = () => {
     if (records.length === 0) return;
-    Alert.alert('Clear all history?', undefined, [
+    showAlert('Clear all history?', undefined, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear all',

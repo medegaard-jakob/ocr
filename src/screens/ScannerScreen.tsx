@@ -4,7 +4,6 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Platform,
   Pressable,
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScanFrameOverlay from '../components/ScanFrameOverlay';
+import { showAlert } from '../lib/alert';
 import { colors } from '../lib/theme';
 import { findUldInText, parseUldToken } from '../lib/uld';
 import { MAX_ULDS_PER_RIDE, type RootStackParamList, type UldEntry } from '../types';
@@ -122,7 +122,7 @@ export default function ScannerScreen({ navigation, route }: Props) {
 
       const text = await recognizeText(photo.uri);
       if (text === null) {
-        Alert.alert(
+        showAlert(
           'OCR unavailable in this build',
           'On-device text recognition needs a custom dev-client or release build ' +
             '(it uses a native module that Expo Go cannot load). Run "npx expo prebuild" ' +
@@ -152,9 +152,24 @@ export default function ScannerScreen({ navigation, route }: Props) {
       const entry: UldEntry = { imageUri, rawText: text, uld, manuallyEdited: false };
       navigation.navigate('Result', { entry, ride });
     } catch (err) {
-      Alert.alert('Scan failed', err instanceof Error ? err.message : String(err));
+      showAlert('Scan failed', err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const goHome = () => {
+    if (ride.length > 0) {
+      showAlert(
+        'Leave this ride?',
+        `${ride.length} ULD${ride.length > 1 ? 's' : ''} scanned so far will be discarded.`,
+        [
+          { text: 'Keep scanning', style: 'cancel' },
+          { text: 'Discard & leave', style: 'destructive', onPress: () => navigation.navigate('Home') },
+        ],
+      );
+    } else {
+      navigation.navigate('Home');
     }
   };
 
@@ -162,7 +177,7 @@ export default function ScannerScreen({ navigation, route }: Props) {
     try {
       const result = await requestPermission();
       if (!result.granted) {
-        Alert.alert(
+        showAlert(
           'Camera access unavailable',
           result.canAskAgain === false
             ? 'Camera permission was denied. Enable it in your browser/system settings, or use "Enter manually" below.'
@@ -170,7 +185,7 @@ export default function ScannerScreen({ navigation, route }: Props) {
         );
       }
     } catch (err) {
-      Alert.alert(
+      showAlert(
         'Camera access unavailable',
         `This environment blocked camera access (${err instanceof Error ? err.message : String(err)}). ` +
           'Use "Enter manually" below to try the rest of the app.',
@@ -181,7 +196,7 @@ export default function ScannerScreen({ navigation, route }: Props) {
   const submitManual = () => {
     const uld = parseUldToken(manualText);
     if (!uld) {
-      Alert.alert('Not a ULD code', 'Expected format: 3 letters + 4-5 digits + 2-3 letters, e.g. AKE12345LH.');
+      showAlert('Not a ULD code', 'Expected format: 3 letters + 4-5 digits + 2-3 letters, e.g. AKE12345LH.');
       return;
     }
     setManualVisible(false);
@@ -231,6 +246,9 @@ export default function ScannerScreen({ navigation, route }: Props) {
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.center}>
+        <Pressable style={styles.backButtonTop} onPress={goHome}>
+          <Text style={styles.backButtonTopText}>← Back</Text>
+        </Pressable>
         <Text style={styles.permissionText}>
           Camera access is needed to scan ULD ID placards.
         </Text>
@@ -259,9 +277,14 @@ export default function ScannerScreen({ navigation, route }: Props) {
       />
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
-        <Pressable style={styles.iconButton} onPress={() => setTorch((t) => !t)}>
-          <Text style={styles.iconButtonText}>{torch ? 'Torch on' : 'Torch off'}</Text>
-        </Pressable>
+        <View style={styles.topBarLeft}>
+          <Pressable style={styles.iconButton} onPress={goHome}>
+            <Text style={styles.iconButtonText}>← Back</Text>
+          </Pressable>
+          <Pressable style={styles.iconButton} onPress={() => setTorch((t) => !t)}>
+            <Text style={styles.iconButtonText}>{torch ? 'Torch on' : 'Torch off'}</Text>
+          </Pressable>
+        </View>
         {ride.length > 0 && (
           <View style={styles.rideBadge}>
             <Text style={styles.rideBadgeText}>
@@ -299,9 +322,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
   },
+  topBarLeft: { flexDirection: 'row', gap: 8 },
+  backButtonTop: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 4 },
+  backButtonTopText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
   bottomBar: {
     position: 'absolute',
     bottom: 0,

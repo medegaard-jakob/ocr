@@ -1,8 +1,9 @@
 import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '../lib/alert';
 import { Driver, MOCK_DRIVERS } from '../lib/dispatch';
 import { saveRecord } from '../lib/storage';
 import { colors } from '../lib/theme';
@@ -59,7 +60,7 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
       await saveRecord({ ...record, dispatch: record.dispatch, driver: selectedDriver });
       setToastDriver(selectedDriver);
     } catch (err) {
-      Alert.alert(
+      showAlert(
         'Could not save assignment',
         err instanceof Error ? err.message : String(err),
       );

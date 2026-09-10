@@ -1,9 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import UldBadge from '../components/UldBadge';
+import { showAlert } from '../lib/alert';
 import { colors } from '../lib/theme';
 import { KNOWN_AIRLINE_CODES, KNOWN_TYPE_CODES, isValidUldCode, parseUldToken } from '../lib/uld';
 import { MAX_ULDS_PER_RIDE, type RootStackParamList, type UldEntry } from '../types';
@@ -31,7 +32,7 @@ export default function ResultScreen({ route, navigation }: Props) {
 
   const onAddAnother = () => {
     if (!codeIsValid) {
-      Alert.alert('Invalid code', 'Fix the ULD code before adding it to the ride.');
+      showAlert('Invalid code', 'Fix the ULD code before adding it to the ride.');
       return;
     }
     navigation.navigate('Scanner', { ride: [...ride, confirmedEntry()] });
@@ -39,7 +40,7 @@ export default function ResultScreen({ route, navigation }: Props) {
 
   const onContinue = () => {
     if (!codeIsValid) {
-      Alert.alert('Invalid code', 'Fix the ULD code before continuing (3 letters + 4-5 digits + 2-3 letters).');
+      showAlert('Invalid code', 'Fix the ULD code before continuing (3 letters + 4-5 digits + 2-3 letters).');
       return;
     }
     navigation.navigate('Dispatch', {

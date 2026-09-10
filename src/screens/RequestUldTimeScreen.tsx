@@ -78,7 +78,11 @@ export default function RequestUldTimeScreen({ route, navigation }: Props) {
       isEmptyRequest: true,
       emptyTypeCode: typeCode,
     };
-    navigation.navigate('Dispatch', { record });
+    // Skip the Dispatch review screen -- nothing on it needs double-checking
+    // here (unlike a scan, where OCR misreads are worth a look), so it was
+    // just an extra tap between finishing this form and picking a driver.
+    // The same summary is still one tap away later, from the Tasks list.
+    navigation.navigate('AssignDriver', { record });
   };
 
   return (
@@ -135,7 +139,7 @@ export default function RequestUldTimeScreen({ route, navigation }: Props) {
 
       <View style={styles.footer}>
         <Pressable style={styles.continueButton} onPress={onConfirm}>
-          <Text style={styles.continueButtonText}>Create request</Text>
+          <Text style={styles.continueButtonText}>Continue to assign driver</Text>
         </Pressable>
       </View>
     </SafeAreaView>

@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   thumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   thumbPlaceholderText: { fontSize: 11, color: colors.textMuted },
   cardBody: { flex: 1, gap: 4, justifyContent: 'center' },
-  code: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, letterSpacing: 1 },
+  code: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, letterSpacing: 1 },
   codeExtra: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0 },
   timestamp: { fontSize: 12, color: colors.textSecondary },
   badgeRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   editedBadgeText: { color: 'white', fontSize: 12, fontWeight: '600' },
   priorityBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   priorityBadgeText: { fontSize: 12, fontWeight: '700' },
-  dispatchLine: { fontSize: 12.5, color: colors.textSecondary, marginTop: 2 },
+  dispatchLine: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
   footer: {
     flexDirection: 'row',
     gap: 12,

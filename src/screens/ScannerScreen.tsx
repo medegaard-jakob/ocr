@@ -315,7 +315,7 @@ export default function ScannerScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, backgroundColor: colors.bg },
-  permissionText: { textAlign: 'center', fontSize: 16, color: colors.textPrimary },
+  permissionText: { textAlign: 'center', fontSize: 18, color: colors.textPrimary },
   topBar: {
     position: 'absolute',
     top: 0,
@@ -342,18 +342,18 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 8,
   },
-  iconButtonText: { color: 'white', fontSize: 13, fontWeight: '600' },
+  iconButtonText: { color: 'white', fontSize: 15, fontWeight: '600' },
   rideBadge: {
     backgroundColor: colors.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 8,
   },
-  rideBadgeText: { color: 'white', fontSize: 13, fontWeight: '700' },
+  rideBadgeText: { color: 'white', fontSize: 15, fontWeight: '700' },
   shutter: {
     width: 76,
     height: 76,

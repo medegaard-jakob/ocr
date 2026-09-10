@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  uldChipText: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', letterSpacing: 0.5 },
+  uldChipText: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', letterSpacing: 0.5 },
   list: { flex: 1 },
   listContent: { padding: 20, gap: 10 },
   row: {
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   loadBar: { width: 12, height: 2, backgroundColor: 'white', borderRadius: 1 },
-  driverName: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  driverName: { color: colors.textPrimary, fontSize: 17, fontWeight: '600' },
   driverShift: { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
   footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border },
   assignButton: { backgroundColor: colors.accentDeep, borderRadius: 8, paddingVertical: 16, alignItems: 'center' },

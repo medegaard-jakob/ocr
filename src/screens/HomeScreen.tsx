@@ -53,12 +53,12 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   row: {
-    paddingVertical: 20,
+    paddingVertical: 22,
     paddingHorizontal: 18,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   rowLast: { borderBottomWidth: 0 },
-  rowText: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
+  rowText: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
   rowTextDisabled: { color: colors.textMuted },
 });

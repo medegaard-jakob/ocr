@@ -44,4 +44,5 @@ export type RootStackParamList = {
   RequestUldCompany: undefined;
   RequestUldType: { companyCode: string };
   RequestUldBank: { companyCode: string; typeCode: string; amount: number };
+  RequestUldTime: { companyCode: string; typeCode: string; amount: number; bank: string };
 };

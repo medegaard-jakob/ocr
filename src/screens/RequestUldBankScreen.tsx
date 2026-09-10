@@ -2,43 +2,14 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MOCK_BANKS, generateDispatchInfo } from '../lib/dispatch';
+import { MOCK_BANKS } from '../lib/dispatch';
 import { colors } from '../lib/theme';
-import type { RootStackParamList, ScanRecord, UldEntry } from '../types';
+import type { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RequestUldBank'>;
 
-// Empty-ULD requests aren't tied to real serial numbers -- nobody requesting
-// them knows which specific IDs are in stock, only the type and how many.
-// These placeholder entries just carry a count; the type itself is stored on
-// the record (isEmptyRequest/emptyTypeCode) so every screen can show "3x AKE"
-// instead of a fabricated full code.
-function generateEmptyUldEntries(amount: number): UldEntry[] {
-  return Array.from({ length: amount }, () => ({
-    imageUri: null,
-    rawText: '',
-    uld: null,
-    manuallyEdited: false,
-  }));
-}
-
 export default function RequestUldBankScreen({ route, navigation }: Props) {
-  const { typeCode, amount } = route.params;
-
-  const onSelectBank = (bank: string) => {
-    const ulds = generateEmptyUldEntries(amount);
-    const seed = `empty-${typeCode}-${amount}-${Date.now()}-${Math.random()}`;
-    const dispatch = { ...generateDispatchInfo(seed), stand: bank };
-    const record: ScanRecord = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      timestamp: Date.now(),
-      ulds,
-      dispatch,
-      isEmptyRequest: true,
-      emptyTypeCode: typeCode,
-    };
-    navigation.navigate('Dispatch', { record });
-  };
+  const { companyCode, typeCode, amount } = route.params;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -49,7 +20,7 @@ export default function RequestUldBankScreen({ route, navigation }: Props) {
             <Pressable
               key={bank}
               style={[styles.row, i === MOCK_BANKS.length - 1 && styles.rowLast]}
-              onPress={() => onSelectBank(bank)}
+              onPress={() => navigation.navigate('RequestUldTime', { companyCode, typeCode, amount, bank })}
             >
               <Text style={styles.rowText}>{bank}</Text>
             </Pressable>

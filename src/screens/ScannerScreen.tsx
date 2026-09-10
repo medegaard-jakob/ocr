@@ -36,10 +36,37 @@ function loadTextRecognizer(): typeof import('@react-native-ml-kit/text-recognit
 // On web there's no native module to load -- Tesseract.js runs OCR entirely
 // client-side (WASM), so it's always available there. Returns null only on
 // native platforms without a dev-client build (ML Kit not linked).
+//
+// A ULD code is only ever [A-Z0-9], and it's usually one isolated block of
+// text on a label that also carries a barcode, airline logo, and other
+// printed clutter. Tesseract's defaults are tuned for reading full pages of
+// prose, not that -- so we whitelist the character set (misreads can only
+// ever land on a letter/digit, never stray punctuation) and switch to
+// SPARSE_TEXT page segmentation (built for finding isolated blocks of text
+// scattered in an image, rather than assuming one uniform paragraph).
+// The worker is created once and reused across scans in a ride instead of
+// re-initializing (and re-downloading the WASM core) on every capture.
+let webWorkerPromise: ReturnType<typeof import('tesseract.js').createWorker> | null = null;
+
+async function getWebOcrWorker() {
+  if (!webWorkerPromise) {
+    webWorkerPromise = (async () => {
+      const { createWorker, PSM } = await import('tesseract.js');
+      const worker = await createWorker('eng');
+      await worker.setParameters({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+        tessedit_pageseg_mode: PSM.SPARSE_TEXT,
+      });
+      return worker;
+    })();
+  }
+  return webWorkerPromise;
+}
+
 async function recognizeText(uri: string): Promise<string | null> {
   if (Platform.OS === 'web') {
-    const { recognize } = await import('tesseract.js');
-    const result = await recognize(uri, 'eng');
+    const worker = await getWebOcrWorker();
+    const result = await worker.recognize(uri);
     return result.data.text;
   }
   const TextRecognition = loadTextRecognizer();

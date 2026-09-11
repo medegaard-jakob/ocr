@@ -81,7 +81,7 @@ export default function RequestUldTimeScreen({ route, navigation }: Props) {
     // Skip the Dispatch review screen -- nothing on it needs double-checking
     // here (unlike a scan, where OCR misreads are worth a look), so it was
     // just an extra tap between finishing this form and picking a driver.
-    // The same summary is still one tap away later, from the Tasks list.
+    // The same summary is still one tap away later, from the Task overview.
     navigation.navigate('AssignDriver', { record });
   };
 

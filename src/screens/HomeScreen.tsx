@@ -42,7 +42,7 @@ export default function HomeScreen({ navigation }: Props) {
   const items: MenuItem[] = [
     { label: 'Make task', onPress: () => navigation.navigate('Scanner') },
     { label: 'Request empty ULD', onPress: () => navigation.navigate('RequestUldCompany') },
-    { label: 'Tasks', onPress: () => navigation.navigate('History') },
+    { label: 'Task overview', onPress: () => navigation.navigate('History') },
     { label: 'Full Can Store overview' },
     { label: 'Flight overview' },
     { label: 'Via' },

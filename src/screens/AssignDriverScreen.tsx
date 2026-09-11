@@ -46,21 +46,33 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
 
   const selectedDriver = MOCK_DRIVERS.find((d) => d.id === selectedId) ?? null;
 
+  // True when this task already had a driver -- i.e. this is a reassignment
+  // from Task overview, not the tail end of the scan-to-dispatch wizard.
+  const isReassignment = !!record.driver;
+
   // Only offer this when reassigning a task that's already flagged as
   // needing attention -- a fresh, never-assigned, or on-time task has
   // nothing to resolve yet. Left unchecked by default: reassigning doesn't
   // always mean the task is fully handled, so resolving stays a deliberate
   // extra tap rather than something that happens as a side effect.
   const status = getTaskStatus(record, Date.now());
-  const showResolveOption = !!record.driver && (status === 'at_risk' || status === 'overdue');
+  const showResolveOption = isReassignment && (status === 'at_risk' || status === 'overdue');
 
   useEffect(() => {
     if (!toastDriver) return;
     const timer = setTimeout(() => {
-      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Home' }] }));
+      // Reassigning is a task-management action reached from Task overview --
+      // land back there. A first-time assignment is the tail end of the
+      // scan/request wizard that started at Home, so that one still returns
+      // to the main menu.
+      navigation.dispatch(
+        isReassignment
+          ? CommonActions.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'History' }] })
+          : CommonActions.reset({ index: 0, routes: [{ name: 'Home' }] }),
+      );
     }, 1600);
     return () => clearTimeout(timer);
-  }, [toastDriver, navigation]);
+  }, [toastDriver, navigation, isReassignment]);
 
   const onAssign = async () => {
     if (!selectedDriver || !record.dispatch) return;

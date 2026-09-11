@@ -1,3 +1,4 @@
+import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -90,6 +91,17 @@ export default function DispatchScreen({ route, navigation }: Props) {
       showAlert('Could not save', err instanceof Error ? err.message : String(err));
     }
   };
+
+  // Once resolved, this screen's job is done -- briefly show the
+  // confirmation banner below, then head back to Task overview instead of
+  // leaving the supervisor stuck needing the back button to get there.
+  useEffect(() => {
+    if (status !== 'resolved') return;
+    const timer = setTimeout(() => {
+      navigation.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'History' }] }));
+    }, 1400);
+    return () => clearTimeout(timer);
+  }, [status, navigation]);
 
   const onNudge = async () => {
     const updated = { ...task, lastNudgedAt: Date.now() };

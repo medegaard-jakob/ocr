@@ -44,7 +44,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Scan result' }} />
         <Stack.Screen name="Dispatch" component={DispatchScreen} options={{ title: 'Transportation order' }} />
         <Stack.Screen name="AssignDriver" component={AssignDriverScreen} options={{ title: 'Driver team' }} />
-        <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'Tasks' }} />
+        <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'Task overview' }} />
         <Stack.Screen name="RequestUldCompany" component={RequestUldCompanyScreen} options={{ title: 'Select company' }} />
         <Stack.Screen name="RequestUldType" component={RequestUldTypeScreen} options={{ title: 'ULD type & amount' }} />
         <Stack.Screen name="RequestUldBank" component={RequestUldBankScreen} options={{ title: 'Deliver to' }} />

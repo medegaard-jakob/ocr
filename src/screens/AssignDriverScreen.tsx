@@ -58,6 +58,20 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
   const [resolveOnAssign, setResolveOnAssign] = useState(false);
   const [records, setRecords] = useState<ScanRecord[]>([]);
 
+  // selectedId/resolveOnAssign above only seed from the route param on this
+  // component's *first* mount. React Navigation can reuse an already-mounted
+  // AssignDriver screen instance across different records (e.g. navigating
+  // here for one task, backing out without assigning, then reassigning a
+  // different task) rather than always remounting fresh -- without this,
+  // that reuse would leave the previous task's driver pick (and resolve
+  // checkbox) silently carried over onto an unrelated task. Resync
+  // explicitly whenever the record we're assigning for actually changes.
+  useEffect(() => {
+    setSelectedId(record.driver?.id ?? null);
+    setResolveOnAssign(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record.id]);
+
   const refreshRecords = useCallback(() => {
     loadHistory().then(setRecords);
   }, []);
@@ -82,19 +96,25 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     if (!toastDriver) return;
-    const timer = setTimeout(() => {
-      // Reassigning is a task-management action reached from Task overview --
-      // land back there. A first-time assignment is the tail end of the
-      // scan/request wizard that started at Home, so that one still returns
-      // to the main menu.
-      navigation.dispatch(
-        isReassignment
-          ? CommonActions.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'History' }] })
-          : CommonActions.reset({ index: 0, routes: [{ name: 'Home' }] }),
-      );
-    }, 1600);
+    // Give the "Marked resolved" line (an extra thing to notice, on top of
+    // the assignment itself) more time to actually register than the plain
+    // assignment toast needs.
+    const timer = setTimeout(
+      () => {
+        // Reassigning is a task-management action reached from Task overview --
+        // land back there. A first-time assignment is the tail end of the
+        // scan/request wizard that started at Home, so that one still returns
+        // to the main menu.
+        navigation.dispatch(
+          isReassignment
+            ? CommonActions.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'History' }] })
+            : CommonActions.reset({ index: 0, routes: [{ name: 'Home' }] }),
+        );
+      },
+      resolveOnAssign ? 2400 : 1600,
+    );
     return () => clearTimeout(timer);
-  }, [toastDriver, navigation, isReassignment]);
+  }, [toastDriver, navigation, isReassignment, resolveOnAssign]);
 
   const onAssign = async () => {
     if (!selectedDriver || !record.dispatch) return;
@@ -173,7 +193,10 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.resolveRowTitle}>Mark this task resolved after reassigning</Text>
-              <Text style={styles.resolveRowSub}>This task is at risk -- check this if reassigning it now handles it.</Text>
+              <Text style={styles.resolveRowSub}>
+                This task is {status === 'overdue' ? 'overdue' : 'at risk'} -- check this if reassigning it now
+                handles it.
+              </Text>
             </View>
           </Pressable>
         )}

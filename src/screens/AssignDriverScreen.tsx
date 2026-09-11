@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '../lib/alert';
-import { Driver, MOCK_DRIVERS } from '../lib/dispatch';
+import { Driver, MOCK_DRIVERS, getTaskStatus } from '../lib/dispatch';
 import { saveRecord } from '../lib/storage';
 import { colors } from '../lib/theme';
 import type { RootStackParamList } from '../types';
@@ -42,8 +42,17 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(record.driver?.id ?? null);
   const [assigning, setAssigning] = useState(false);
   const [toastDriver, setToastDriver] = useState<Driver | null>(null);
+  const [resolveOnAssign, setResolveOnAssign] = useState(false);
 
   const selectedDriver = MOCK_DRIVERS.find((d) => d.id === selectedId) ?? null;
+
+  // Only offer this when reassigning a task that's already flagged as
+  // needing attention -- a fresh, never-assigned, or on-time task has
+  // nothing to resolve yet. Left unchecked by default: reassigning doesn't
+  // always mean the task is fully handled, so resolving stays a deliberate
+  // extra tap rather than something that happens as a side effect.
+  const status = getTaskStatus(record, Date.now());
+  const showResolveOption = !!record.driver && (status === 'at_risk' || status === 'overdue');
 
   useEffect(() => {
     if (!toastDriver) return;
@@ -57,7 +66,12 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
     if (!selectedDriver || !record.dispatch) return;
     setAssigning(true);
     try {
-      await saveRecord({ ...record, dispatch: record.dispatch, driver: selectedDriver });
+      await saveRecord({
+        ...record,
+        dispatch: record.dispatch,
+        driver: selectedDriver,
+        resolvedAt: resolveOnAssign ? Date.now() : record.resolvedAt,
+      });
       setToastDriver(selectedDriver);
     } catch (err) {
       showAlert(
@@ -112,6 +126,17 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
       />
 
       <View style={styles.footer}>
+        {showResolveOption && (
+          <Pressable style={styles.resolveRow} onPress={() => setResolveOnAssign((v) => !v)}>
+            <View style={[styles.checkbox, resolveOnAssign && styles.checkboxChecked]}>
+              {resolveOnAssign && <View style={styles.checkboxTick} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.resolveRowTitle}>Mark this task resolved after reassigning</Text>
+              <Text style={styles.resolveRowSub}>This task is at risk -- check this if reassigning it now handles it.</Text>
+            </View>
+          </Pressable>
+        )}
         <Pressable
           style={[styles.assignButton, (!selectedDriver || assigning) && styles.disabled]}
           onPress={onAssign}
@@ -138,6 +163,7 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
             <Text style={styles.toastText}>
               {record.ulds.length > 1 ? 'Tasks' : 'Task'} sent to {toastDriver.vehicle.toLowerCase()}
             </Text>
+            {resolveOnAssign && <Text style={styles.toastSubText}>Marked resolved</Text>}
           </View>
         </View>
       )}
@@ -228,7 +254,19 @@ const styles = StyleSheet.create({
   loadBar: { width: 15, height: 2.5, backgroundColor: 'white', borderRadius: 1 },
   driverName: { color: colors.textPrimary, fontSize: 19, fontWeight: '600' },
   driverShift: { color: colors.textSecondary, fontSize: 14, marginTop: 2 },
-  footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border },
+  footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border, gap: 14 },
+  resolveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  resolveRowTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  resolveRowSub: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
   assignButton: { backgroundColor: colors.accentDeep, borderRadius: 10, paddingVertical: 20, alignItems: 'center' },
   disabled: { opacity: 0.5 },
   assignButtonText: { color: 'white', fontWeight: '700', fontSize: 19 },
@@ -254,4 +292,5 @@ const styles = StyleSheet.create({
   toastListBar: { height: 3, borderRadius: 1.5, backgroundColor: colors.accent },
   toastArrow: { color: colors.textSecondary, fontSize: 20, fontWeight: '700' },
   toastText: { color: colors.accent, fontSize: 19, fontWeight: '700', textAlign: 'center' },
+  toastSubText: { color: colors.success, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 });

@@ -174,6 +174,7 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         data={MOCK_DRIVERS}
+        extraData={records}
         keyExtractor={(d) => d.id}
         renderItem={({ item }) => (
           <DriverRow

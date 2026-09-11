@@ -1,19 +1,22 @@
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '../lib/alert';
 import { Driver, MOCK_DRIVERS, getTaskStatus } from '../lib/dispatch';
-import { saveRecord } from '../lib/storage';
+import { loadHistory, saveRecord } from '../lib/storage';
 import { colors } from '../lib/theme';
-import type { RootStackParamList } from '../types';
+import type { RootStackParamList, ScanRecord } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AssignDriver'>;
 
-// Availability + current workload, per the tug/box legend:
-// tractor blue = driver available, grey = not available (on route);
-// box grey = no active tasks, box blue with bars = that many active tasks.
+// Availability and workload are independent, per the tug/box legend:
+// tractor blue = driver available, grey = not available (on route) --
+// regardless of task count. Box grey = no active tasks, box blue with bars
+// (1-3, capped) = that many active tasks -- regardless of availability, so
+// a grey (unavailable) tractor next to a loaded box is a valid, expected
+// combination: a driver can have tasks queued while off-shift/on-route.
 function TractorIcon({ available }: { available: boolean }) {
   const tint = available ? colors.accent : colors.disabled;
   return (
@@ -37,12 +40,31 @@ function LoadIcon({ activeTasks }: { activeTasks: number }) {
   );
 }
 
+// MOCK_DRIVERS.activeTasks is just a static seed (so the roster shows some
+// variety on first load, including an unavailable-but-loaded driver). Real
+// assignments made in this app add on top of that seed by counting each
+// driver's unresolved tasks from storage -- so a driver's bar count updates
+// live the moment a task is assigned to them, without mutating the mock roster.
+function liveActiveTaskCount(driver: Driver, records: ScanRecord[]): number {
+  const assignedHere = records.filter((r) => r.driver?.id === driver.id && !r.resolvedAt).length;
+  return driver.activeTasks + assignedHere;
+}
+
 export default function AssignDriverScreen({ route, navigation }: Props) {
   const { record } = route.params;
   const [selectedId, setSelectedId] = useState<string | null>(record.driver?.id ?? null);
   const [assigning, setAssigning] = useState(false);
   const [toastDriver, setToastDriver] = useState<Driver | null>(null);
   const [resolveOnAssign, setResolveOnAssign] = useState(false);
+  const [records, setRecords] = useState<ScanRecord[]>([]);
+
+  const refreshRecords = useCallback(() => {
+    loadHistory().then(setRecords);
+  }, []);
+
+  // Reload on focus so reopening this screen (e.g. after assigning a task
+  // and coming back to reassign another) shows every driver's current load.
+  useFocusEffect(refreshRecords);
 
   const selectedDriver = MOCK_DRIVERS.find((d) => d.id === selectedId) ?? null;
 
@@ -84,6 +106,7 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
         driver: selectedDriver,
         resolvedAt: resolveOnAssign ? Date.now() : record.resolvedAt,
       });
+      refreshRecords();
       setToastDriver(selectedDriver);
     } catch (err) {
       showAlert(
@@ -133,7 +156,12 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
         data={MOCK_DRIVERS}
         keyExtractor={(d) => d.id}
         renderItem={({ item }) => (
-          <DriverRow driver={item} selected={item.id === selectedId} onPress={() => setSelectedId(item.id)} />
+          <DriverRow
+            driver={item}
+            activeTasks={liveActiveTaskCount(item, records)}
+            selected={item.id === selectedId}
+            onPress={() => setSelectedId(item.id)}
+          />
         )}
       />
 
@@ -183,7 +211,17 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
   );
 }
 
-function DriverRow({ driver, selected, onPress }: { driver: Driver; selected: boolean; onPress: () => void }) {
+function DriverRow({
+  driver,
+  activeTasks,
+  selected,
+  onPress,
+}: {
+  driver: Driver;
+  activeTasks: number;
+  selected: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
       <View style={[styles.checkbox, selected && styles.checkboxChecked]}>
@@ -193,7 +231,7 @@ function DriverRow({ driver, selected, onPress }: { driver: Driver; selected: bo
         <Text style={styles.codeChipText}>{driver.code}</Text>
       </View>
       <TractorIcon available={driver.status === 'available'} />
-      <LoadIcon activeTasks={driver.activeTasks} />
+      <LoadIcon activeTasks={activeTasks} />
       <View style={{ flex: 1 }}>
         <Text style={styles.driverName}>{driver.name}</Text>
         <Text style={styles.driverShift}>

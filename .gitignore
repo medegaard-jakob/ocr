@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Playwright MCP output (page snapshots, screenshots it saves by default)
+.playwright-mcp/
+
 # generated native folders
 /ios
 /android

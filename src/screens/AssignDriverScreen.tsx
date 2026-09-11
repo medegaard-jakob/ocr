@@ -40,14 +40,11 @@ function LoadIcon({ activeTasks }: { activeTasks: number }) {
   );
 }
 
-// MOCK_DRIVERS.activeTasks is just a static seed (so the roster shows some
-// variety on first load, including an unavailable-but-loaded driver). Real
-// assignments made in this app add on top of that seed by counting each
-// driver's unresolved tasks from storage -- so a driver's bar count updates
-// live the moment a task is assigned to them, without mutating the mock roster.
+// A driver's task count is purely their unresolved tasks in storage -- no
+// separate seed/baseline number, so reassigning a task away from someone
+// (or resolving it) is immediately visible as one fewer bar for them.
 function liveActiveTaskCount(driver: Driver, records: ScanRecord[]): number {
-  const assignedHere = records.filter((r) => r.driver?.id === driver.id && !r.resolvedAt).length;
-  return driver.activeTasks + assignedHere;
+  return records.filter((r) => r.driver?.id === driver.id && !r.resolvedAt).length;
 }
 
 export default function AssignDriverScreen({ route, navigation }: Props) {

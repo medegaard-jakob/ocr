@@ -10,10 +10,17 @@ import TractorIcon from './TractorIcon';
  * glyph reads better at this size than anything assembled from boxes -- the
  * screens already use ‹ → ⚠ the same way).
  *
+ * The three ULD-shaped stages are told apart by how full they are, not by
+ * subtly different outlines: empty is hollow, being packed is part-filled
+ * with a piece dropping in, and unknown isn't a contoured ULD at all -- it's
+ * a plain box with a question mark, because the whole point of that count is
+ * that nobody knows what state those ULDs are in. At icon size an outline
+ * that differs only at one corner is not a difference.
+ *
  * Every mark takes its color from the caller so a stage can go green when
  * delivered or orange when at risk, rather than each icon deciding for
- * itself. `background` is whatever surface the icon sits on; the shapes that
- * need to look cut out or hollow fill against it.
+ * itself. `background` is whatever surface the icon sits on; the cut corner
+ * is masked against it.
  */
 export default function UldStageIcon({
   stage,
@@ -25,31 +32,32 @@ export default function UldStageIcon({
   background?: string;
 }) {
   switch (stage) {
-    // A plain, unmarked ULD: we know it belongs to the flight, nothing more.
+    // Not a ULD silhouette on purpose -- this count is the ones we can't
+    // place, so it shouldn't look like a particular kind of ULD.
     case 'unknown':
       return (
         <View style={styles.frame}>
-          <View style={[styles.uldBox, { borderColor: color }]} />
+          <View style={[styles.plainBox, { borderColor: color }]}>
+            <Text style={[styles.question, { color }]}>?</Text>
+          </View>
         </View>
       );
 
-    // The contoured LD3 profile -- outline only, so it reads as an empty one.
     case 'empty':
       return (
         <View style={styles.frame}>
-          <View style={[styles.uldBox, { borderColor: color }]} />
-          <View style={[styles.slopeMask, { backgroundColor: background }]} />
-          <View style={[styles.slopeEdge, { backgroundColor: color }]} />
+          <UldProfile color={color} background={background} />
         </View>
       );
 
-    // Cargo dropping into an open ULD at the baggage hall.
+    // Part-filled, with a piece still dropping in.
     case 'packing':
       return (
         <View style={styles.frame}>
-          <View style={[styles.packBox, { borderColor: color }]} />
-          <View style={[styles.packItem, { left: 5, backgroundColor: color }]} />
-          <View style={[styles.packItem, { right: 5, backgroundColor: color }]} />
+          <UldProfile color={color} background={background}>
+            <View style={[styles.packFill, { backgroundColor: color }]} />
+          </UldProfile>
+          <View style={[styles.packItem, { backgroundColor: color }]} />
         </View>
       );
 
@@ -60,7 +68,7 @@ export default function UldStageIcon({
         </View>
       );
 
-    // Filled stacks side by side: ULDs parked in the buffer.
+    // Several ULDs parked side by side.
     case 'buffer':
       return (
         <View style={styles.frame}>
@@ -81,27 +89,73 @@ export default function UldStageIcon({
   }
 }
 
+/** The contoured ULD silhouette: a box with the top corner cut away. */
+function UldProfile({
+  color,
+  background,
+  children,
+}: {
+  color: string;
+  background: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <View style={styles.profileWrap}>
+      <View style={[styles.profileBox, { borderColor: color }]}>{children}</View>
+      <View style={[styles.slopeMask, { backgroundColor: background }]} />
+      <View style={[styles.slopeEdge, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
 const ICON_W = 32;
 const ICON_H = 26;
+const STROKE = 2.5;
 
 const styles = StyleSheet.create({
   frame: { width: ICON_W, height: ICON_H, alignItems: 'center', justifyContent: 'center' },
-  uldBox: { width: 26, height: 19, borderWidth: 2, borderRadius: 2 },
-  // A square rotated onto the top-left corner, filled with the card's own
-  // background, cuts the corner away; the bar redraws the edge on the slope.
-  slopeMask: { position: 'absolute', left: -4, top: -3, width: 13, height: 13, transform: [{ rotate: '45deg' }] },
-  slopeEdge: { position: 'absolute', left: 1, top: 6, width: 12, height: 2, transform: [{ rotate: '-45deg' }] },
-  packBox: { width: 22, height: 13, borderWidth: 2, borderRadius: 2, marginTop: 8 },
-  packItem: { position: 'absolute', top: 1, width: 5, height: 5, borderRadius: 1 },
+
+  plainBox: {
+    width: 24,
+    height: 18,
+    borderWidth: STROKE,
+    borderRadius: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  question: { fontSize: 11, fontWeight: '700', lineHeight: 13 },
+
+  profileWrap: { width: 24, height: 18, marginTop: 3 },
+  profileBox: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderWidth: STROKE,
+    borderRadius: 2,
+    justifyContent: 'flex-end',
+  },
+  // A square rotated onto the top-left corner, filled with whatever the icon
+  // sits on, cuts the corner away; the bar redraws the edge along the slope.
+  slopeMask: { position: 'absolute', left: -7, top: -7, width: 17, height: 17, transform: [{ rotate: '45deg' }] },
+  slopeEdge: { position: 'absolute', left: -1, top: 4, width: 14, height: STROKE, transform: [{ rotate: '-45deg' }] },
+
+  packFill: { height: 6, marginHorizontal: 1, marginBottom: 1, borderRadius: 1 },
+  packItem: { position: 'absolute', top: 0, right: 6, width: 5, height: 5, borderRadius: 1 },
+
   bufferGrid: {
-    width: 26,
-    height: 19,
+    width: 24,
+    height: 18,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 2,
+    gap: 2.5,
     alignContent: 'center',
     justifyContent: 'center',
   },
-  bufferCell: { width: 7, height: 7, borderRadius: 1 },
+  // Slightly lighter than a packed grid of squares would be: color already
+  // carries the state, so no stage should out-shout the others by weight.
+  bufferCell: { width: 6, height: 6, borderRadius: 1 },
+
   plane: { fontSize: 21, lineHeight: 25 },
 });

@@ -96,7 +96,9 @@ function Legend({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => v
         hitSlop={8}
       >
         <Text style={styles.legendHeading}>ULD STAGES</Text>
-        <Text style={styles.legendToggle}>{collapsed ? 'Show ▾' : 'Hide ▴'}</Text>
+        <View style={styles.legendToggle}>
+          <Text style={styles.legendToggleText}>{collapsed ? 'Show ▾' : 'Hide ▴'}</Text>
+        </View>
       </Pressable>
       {collapsed ? null : (
       <View style={styles.legendGrid}>
@@ -199,15 +201,43 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surfaceAlt,
   },
-  legendHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  legendHeading: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.6 },
-  legendToggle: { fontSize: 12, fontWeight: '700', color: colors.accent },
+  // Tall enough to be a real target on its own -- the whole header is the
+  // control, not just the words in the corner.
+  legendHeader: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  legendHeading: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.6 },
+  // Outlined like the app's other secondary controls, rather than a bare
+  // text link -- nothing else in the app asks to be tapped that way, and
+  // collapsed this is the only thing saying the legend can come back.
+  legendToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  legendToggleText: { fontSize: 12, fontWeight: '700', color: colors.textPrimary },
   legendGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 12, columnGap: 12 },
   // Two per row: at phone width six columns leaves no room for wording, and
   // these labels are the whole point of the legend.
-  legendItem: { flexBasis: '46%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  legendLabel: { flex: 1, fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
-  legendNote: { fontSize: 12, color: colors.textMuted, lineHeight: 17 },
+  legendItem: {
+    flexBasis: '46%',
+    flexGrow: 1,
+    // Two lines' worth, whether this label needs them or not, so a wrapping
+    // label can't leave its row taller than the one beside it.
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendLabel: { flex: 1, fontSize: 12, lineHeight: 15, color: colors.textSecondary, fontWeight: '600' },
+  legendNote: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
   legendGreen: { color: colors.success, fontWeight: '700' },
   legendOrange: { color: colors.warning, fontWeight: '700' },
   card: {

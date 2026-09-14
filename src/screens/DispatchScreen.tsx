@@ -12,6 +12,7 @@ import {
   formatRelative,
   generateDispatchInfo,
   getTaskStatus,
+  taskDriver,
 } from '../lib/dispatch';
 import { saveRecord } from '../lib/storage';
 import { colors } from '../lib/theme';
@@ -72,6 +73,7 @@ export default function DispatchScreen({ route, navigation }: Props) {
   }, []);
 
   const dispatch = task.dispatch!;
+  const driver = taskDriver(task);
   const now = Date.now();
   const status = getTaskStatus(task, now);
   const statusMeta = status !== 'on_time' ? TASK_STATUS_META[status] : null;
@@ -177,9 +179,9 @@ export default function DispatchScreen({ route, navigation }: Props) {
           <Text style={styles.totalTimeText}>Total time: {totalTimeLabel}</Text>
         </View>
 
-        {task.driver && (
+        {driver && (
           <Text style={styles.driverLine}>
-            Assigned to {task.driver.name} ({task.driver.vehicle})
+            Assigned to {driver.name} ({driver.vehicle})
             {task.lastNudgedAt ? ` · nudged ${nudgedAgo(task.lastNudgedAt, now)}` : ''}
           </Text>
         )}
@@ -196,10 +198,10 @@ export default function DispatchScreen({ route, navigation }: Props) {
               style={styles.assignButton}
               onPress={() => navigation.navigate('AssignDriver', { record: { ...task, dispatch } })}
             >
-              <Text style={styles.assignButtonText}>{task.driver ? 'Reassign driver' : 'Assign driver'}</Text>
+              <Text style={styles.assignButtonText}>{driver ? 'Reassign driver' : 'Assign driver'}</Text>
             </Pressable>
 
-            {task.driver && (
+            {driver && (
               <View style={styles.secondaryActionsRow}>
                 <Pressable style={styles.secondaryActionButton} onPress={onNudge}>
                   <Text style={styles.secondaryActionButtonText}>Nudge driver</Text>
@@ -215,7 +217,7 @@ export default function DispatchScreen({ route, navigation }: Props) {
 
       {nudgeToast && (
         <View style={styles.nudgeToast} pointerEvents="none">
-          <Text style={styles.nudgeToastText}>Nudge sent to {task.driver?.name}</Text>
+          <Text style={styles.nudgeToastText}>Nudge sent to {driver?.name}</Text>
         </View>
       )}
     </SafeAreaView>

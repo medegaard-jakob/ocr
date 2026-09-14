@@ -13,6 +13,7 @@ import {
   generateTestUldCode,
   getTaskStatus,
   pickRandomDriver,
+  taskDriver,
   type TaskStatus,
 } from '../lib/dispatch';
 import { clearHistory, deleteRecord, loadHistory, saveRecord } from '../lib/storage';
@@ -42,12 +43,14 @@ function compareTasks(a: ScanRecord, b: ScanRecord, now: number): number {
 function generateTestOverdueTask(): ScanRecord {
   const now = Date.now();
   const code = generateTestUldCode();
+  const driver = pickRandomDriver();
   return {
     id: `test-${now}-${Math.floor(Math.random() * 100000)}`,
     timestamp: now,
     ulds: [{ imageUri: null, rawText: code, uld: parseUldToken(code), manuallyEdited: false }],
     dispatch: generateTestOverdueDispatch(now),
-    driver: pickRandomDriver(),
+    driverId: driver.id,
+    driver,
   };
 }
 
@@ -117,6 +120,7 @@ export default function HistoryScreen({ navigation }: Props) {
           const extraCount = item.ulds.length - 1;
           const anyManuallyEdited = item.ulds.some((u) => u.manuallyEdited);
           const status = getTaskStatus(item, now);
+          const driver = taskDriver(item);
           const statusMeta = status !== 'on_time' ? TASK_STATUS_META[status] : null;
           return (
             <Pressable
@@ -176,10 +180,10 @@ export default function HistoryScreen({ navigation }: Props) {
                 </Text>
 
                 <View style={styles.bottomLine}>
-                  {item.driver && (
+                  {driver && (
                     <View style={styles.driverChip}>
                       <Text style={styles.driverChipText}>
-                        {item.driver.name} · {item.driver.vehicle}
+                        {driver.name} · {driver.vehicle}
                       </Text>
                     </View>
                   )}

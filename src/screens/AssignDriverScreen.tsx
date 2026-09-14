@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '../lib/alert';
-import { Driver, MOCK_DRIVERS, getTaskStatus, tugCode } from '../lib/dispatch';
+import { Driver, MOCK_DRIVERS, activeTaskCount, getTaskStatus, taskDriver, tugCode } from '../lib/dispatch';
 import { loadHistory, saveRecord } from '../lib/storage';
 import { colors } from '../lib/theme';
 import type { RootStackParamList, ScanRecord } from '../types';
@@ -40,16 +40,9 @@ function LoadIcon({ activeTasks }: { activeTasks: number }) {
   );
 }
 
-// A driver's task count is purely their unresolved tasks in storage -- no
-// separate seed/baseline number, so reassigning a task away from someone
-// (or resolving it) is immediately visible as one fewer bar for them.
-function liveActiveTaskCount(driver: Driver, records: ScanRecord[]): number {
-  return records.filter((r) => r.driver?.id === driver.id && !r.resolvedAt).length;
-}
-
 export default function AssignDriverScreen({ route, navigation }: Props) {
   const { record } = route.params;
-  const [selectedId, setSelectedId] = useState<string | null>(record.driver?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(taskDriver(record)?.id ?? null);
   const [assigning, setAssigning] = useState(false);
   const [toastDriver, setToastDriver] = useState<Driver | null>(null);
   const [resolveOnAssign, setResolveOnAssign] = useState(false);
@@ -64,7 +57,7 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
   // checkbox) silently carried over onto an unrelated task. Resync
   // explicitly whenever the record we're assigning for actually changes.
   useEffect(() => {
-    setSelectedId(record.driver?.id ?? null);
+    setSelectedId(taskDriver(record)?.id ?? null);
     setResolveOnAssign(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record.id]);
@@ -79,9 +72,15 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
 
   const selectedDriver = MOCK_DRIVERS.find((d) => d.id === selectedId) ?? null;
 
+  // Who the task is on right now, as opposed to who the supervisor has
+  // tapped. The tick alone can't tell those apart -- it looks identical
+  // whether it was seeded from the existing assignment or just tapped -- so
+  // the current driver is called out in the header and on their own row.
+  const currentDriver = taskDriver(record);
+
   // True when this task already had a driver -- i.e. this is a reassignment
   // from Task overview, not the tail end of the scan-to-dispatch wizard.
-  const isReassignment = !!record.driver;
+  const isReassignment = !!currentDriver;
 
   // Only offer this when reassigning a task that's already flagged as
   // needing attention -- a fresh, never-assigned, or on-time task has
@@ -120,6 +119,7 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
       await saveRecord({
         ...record,
         dispatch: record.dispatch,
+        driverId: selectedDriver.id,
         driver: selectedDriver,
         resolvedAt: resolveOnAssign ? Date.now() : record.resolvedAt,
       });
@@ -138,6 +138,11 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <Text style={styles.heading}>{record.dispatch?.stand ?? 'Stand'} driver team</Text>
+      {currentDriver && (
+        <Text style={styles.currentLine}>
+          Currently on {currentDriver.name} · {currentDriver.vehicle}
+        </Text>
+      )}
 
       <View style={styles.uldSection}>
         {record.isEmptyRequest ? (
@@ -176,8 +181,9 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
         renderItem={({ item }) => (
           <DriverRow
             driver={item}
-            activeTasks={liveActiveTaskCount(item, records)}
+            activeTasks={activeTaskCount(item.id, records)}
             selected={item.id === selectedId}
+            isCurrent={item.id === currentDriver?.id}
             onPress={() => setSelectedId(item.id)}
           />
         )}
@@ -236,11 +242,13 @@ function DriverRow({
   driver,
   activeTasks,
   selected,
+  isCurrent,
   onPress,
 }: {
   driver: Driver;
   activeTasks: number;
   selected: boolean;
+  isCurrent: boolean;
   onPress: () => void;
 }) {
   return (
@@ -258,6 +266,7 @@ function DriverRow({
         <Text style={styles.driverShift}>
           {driver.shiftStart} - {driver.shiftEnd}
         </Text>
+        {isCurrent && <Text style={styles.currentTag}>Assigned now</Text>}
       </View>
     </Pressable>
   );
@@ -266,6 +275,7 @@ function DriverRow({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   heading: { fontSize: 19, fontWeight: '700', color: colors.textPrimary, paddingHorizontal: 20, paddingTop: 16 },
+  currentLine: { fontSize: 14, color: colors.textSecondary, paddingHorizontal: 20, paddingTop: 4 },
   uldSection: { paddingHorizontal: 20, paddingTop: 12, gap: 8 },
   uldSectionLabel: { fontSize: 13, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase' },
   uldChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -325,6 +335,7 @@ const styles = StyleSheet.create({
   loadBar: { width: 15, height: 2.5, backgroundColor: 'white', borderRadius: 1 },
   driverName: { color: colors.textPrimary, fontSize: 19, fontWeight: '600' },
   driverShift: { color: colors.textSecondary, fontSize: 14, marginTop: 2 },
+  currentTag: { color: colors.accent, fontSize: 13, fontWeight: '700', marginTop: 3 },
   footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border, gap: 14 },
   resolveRow: {
     flexDirection: 'row',

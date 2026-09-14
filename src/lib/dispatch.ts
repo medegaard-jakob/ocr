@@ -40,6 +40,36 @@ export function tugCode(driver: Driver): string {
   return driver.vehicle.replace(/^Tug\s*/i, 'T');
 }
 
+/**
+ * The driver a task is assigned to, resolved against the live roster.
+ *
+ * A record persists a *snapshot* of the driver it was assigned to, so a task
+ * saved before a roster edit would otherwise keep rendering the old name or
+ * tug while the driver picker renders the new one -- the task list and the
+ * driver team quietly disagreeing about the same assignment. Resolving by id
+ * means every screen reads one source of truth; the stored snapshot is only
+ * the fallback, for a driver who has since left the roster.
+ */
+export function taskDriver(record: { driverId?: string; driver?: Driver }): Driver | undefined {
+  const id = record.driverId ?? record.driver?.id;
+  if (!id) return record.driver;
+  return MOCK_DRIVERS.find((d) => d.id === id) ?? record.driver;
+}
+
+/**
+ * How many tasks a driver has on right now: their unresolved assignments and
+ * nothing else -- no seed or baseline number. Reassigning a task away from
+ * someone, or resolving it, is immediately one fewer. The driver picker draws
+ * this as bars in the load box (capped at 3); it lives here, next to the
+ * roster, so no screen can invent its own idea of a driver's workload.
+ */
+export function activeTaskCount(
+  driverId: string,
+  records: { driverId?: string; driver?: Driver; resolvedAt?: number }[],
+): number {
+  return records.filter((r) => !r.resolvedAt && (r.driverId ?? r.driver?.id) === driverId).length;
+}
+
 export const PRIORITY_META: Record<Priority, { label: string; color: string; bg: string }> = {
   standard: { label: 'Standard', color: '#374151', bg: '#F3F4F6' },
   priority: { label: 'Priority', color: '#B45309', bg: '#FEF3C7' },

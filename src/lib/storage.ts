@@ -21,8 +21,15 @@ function migrateRecord(raw: unknown): ScanRecord | null {
   const resolvedAt =
     typeof rest.resolvedAt === 'number' ? rest.resolvedAt : typeof deliveredAt === 'number' ? deliveredAt : undefined;
 
+  // Assignments used to live only as an embedded Driver snapshot, so a task
+  // saved then would render whatever the roster said on the day it was
+  // assigned while the driver picker rendered today's roster. Backfill the id
+  // off the snapshot so old tasks resolve through the roster like new ones.
+  const driver = rest.driver as ScanRecord['driver'];
+  const driverId = typeof rest.driverId === 'string' ? rest.driverId : driver?.id;
+
   if (Array.isArray(rest.ulds)) {
-    return { ...(rest as unknown as ScanRecord), resolvedAt };
+    return { ...(rest as unknown as ScanRecord), driverId, resolvedAt };
   }
 
   // Legacy single-ULD shape.
@@ -37,7 +44,8 @@ function migrateRecord(raw: unknown): ScanRecord | null {
     timestamp: r.timestamp,
     ulds: [entry],
     dispatch: rest.dispatch as ScanRecord['dispatch'],
-    driver: rest.driver as ScanRecord['driver'],
+    driverId,
+    driver,
     resolvedAt,
   };
 }

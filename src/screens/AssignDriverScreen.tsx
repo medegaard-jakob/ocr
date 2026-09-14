@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '../lib/alert';
-import { Driver, MOCK_DRIVERS, getTaskStatus } from '../lib/dispatch';
+import { Driver, MOCK_DRIVERS, getTaskStatus, tugCode } from '../lib/dispatch';
 import { loadHistory, saveRecord } from '../lib/storage';
 import { colors } from '../lib/theme';
 import type { RootStackParamList, ScanRecord } from '../types';
@@ -249,7 +249,7 @@ function DriverRow({
         {selected && <View style={styles.checkboxTick} />}
       </View>
       <View style={styles.codeChip}>
-        <Text style={styles.codeChipText}>{driver.code}</Text>
+        <Text style={styles.codeChipText}>{tugCode(driver)}</Text>
       </View>
       <TractorIcon available={driver.status === 'available'} />
       <LoadIcon activeTasks={activeTasks} />

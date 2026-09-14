@@ -21,13 +21,23 @@ export type DriverStatus = 'available' | 'on_route';
 
 export interface Driver {
   id: string;
-  /** Short tug/vehicle code shown as a chip, e.g. "T004". */
-  code: string;
   name: string;
+  /**
+   * The tug this driver is on, e.g. "Tug 04". This is the *only* vehicle
+   * identifier a driver has: every screen that names the assignment (task
+   * list, task detail, assign toast) shows it, and the narrow chip in the
+   * driver picker shows `tugCode()` of it, so the same driver reads the same
+   * way everywhere.
+   */
   vehicle: string;
   status: DriverStatus;
   shiftStart: string;
   shiftEnd: string;
+}
+
+/** Compact form of a driver's tug for narrow chips: "Tug 04" -> "T04". */
+export function tugCode(driver: Driver): string {
+  return driver.vehicle.replace(/^Tug\s*/i, 'T');
 }
 
 export const PRIORITY_META: Record<Priority, { label: string; color: string; bg: string }> = {
@@ -37,12 +47,12 @@ export const PRIORITY_META: Record<Priority, { label: string; color: string; bg:
 };
 
 export const MOCK_DRIVERS: Driver[] = [
-  { id: 'd1', code: 'T347', name: 'Marcus Webb', vehicle: 'Tug 04', status: 'available', shiftStart: '05:00', shiftEnd: '14:00' },
-  { id: 'd2', code: 'T002', name: 'Priya Nair', vehicle: 'Tug 11', status: 'available', shiftStart: '06:00', shiftEnd: '15:00' },
-  { id: 'd3', code: 'T122', name: 'Sam Okafor', vehicle: 'Tug 07', status: 'on_route', shiftStart: '05:00', shiftEnd: '16:00' },
-  { id: 'd4', code: 'T075', name: 'Elena Kowalski', vehicle: 'Tug 15', status: 'available', shiftStart: '05:00', shiftEnd: '14:00' },
-  { id: 'd5', code: 'T034', name: 'Jonas Berg', vehicle: 'Tug 02', status: 'on_route', shiftStart: '05:00', shiftEnd: '14:00' },
-  { id: 'd6', code: 'T091', name: 'Aisha Mensah', vehicle: 'Tug 19', status: 'available', shiftStart: '07:00', shiftEnd: '16:00' },
+  { id: 'd1', name: 'Marcus Webb', vehicle: 'Tug 04', status: 'available', shiftStart: '05:00', shiftEnd: '14:00' },
+  { id: 'd2', name: 'Priya Nair', vehicle: 'Tug 11', status: 'available', shiftStart: '06:00', shiftEnd: '15:00' },
+  { id: 'd3', name: 'Sam Okafor', vehicle: 'Tug 07', status: 'on_route', shiftStart: '05:00', shiftEnd: '16:00' },
+  { id: 'd4', name: 'Elena Kowalski', vehicle: 'Tug 15', status: 'available', shiftStart: '05:00', shiftEnd: '14:00' },
+  { id: 'd5', name: 'Jonas Berg', vehicle: 'Tug 02', status: 'on_route', shiftStart: '05:00', shiftEnd: '14:00' },
+  { id: 'd6', name: 'Aisha Mensah', vehicle: 'Tug 19', status: 'available', shiftStart: '07:00', shiftEnd: '16:00' },
 ];
 
 // djb2 string hash -> mulberry32 PRNG, so a given ULD code always maps to

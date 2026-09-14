@@ -44,7 +44,7 @@ export default function HomeScreen({ navigation }: Props) {
     { label: 'Request empty ULD', onPress: () => navigation.navigate('RequestUldCompany') },
     { label: 'Task overview', onPress: () => navigation.navigate('History') },
     { label: 'Full Can Store overview' },
-    { label: 'Flight overview' },
+    { label: 'Flight overview', onPress: () => navigation.navigate('FlightOverview') },
     { label: 'Via' },
     { label: 'Map' },
   ];

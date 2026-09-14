@@ -3,6 +3,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import TractorIcon from '../components/TractorIcon';
 import { showAlert } from '../lib/alert';
 import { Driver, MOCK_DRIVERS, activeTaskCount, getTaskStatus, taskDriver, tugCode } from '../lib/dispatch';
 import { loadHistory, saveRecord } from '../lib/storage';
@@ -17,16 +18,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AssignDriver'>;
 // (1-3, capped) = that many active tasks -- regardless of availability, so
 // a grey (unavailable) tractor next to a loaded box is a valid, expected
 // combination: a driver can have tasks queued while off-shift/on-route.
-function TractorIcon({ available }: { available: boolean }) {
-  const tint = available ? colors.accent : colors.disabled;
-  return (
-    <View style={styles.tractorWrap}>
-      <View style={[styles.tractorBody, { backgroundColor: tint }]} />
-      <View style={[styles.tractorCab, { backgroundColor: tint }]} />
-      <View style={[styles.tractorWheel, { left: 3, backgroundColor: colors.surface, borderColor: tint }]} />
-      <View style={[styles.tractorWheel, { right: 3, backgroundColor: colors.surface, borderColor: tint }]} />
-    </View>
-  );
+function DriverTractor({ available }: { available: boolean }) {
+  return <TractorIcon color={available ? colors.accent : colors.disabled} />;
 }
 
 function LoadIcon({ activeTasks }: { activeTasks: number }) {
@@ -225,7 +218,7 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
                 <View style={styles.toastListBar} />
               </View>
               <Text style={styles.toastArrow}>→</Text>
-              <TractorIcon available />
+              <DriverTractor available />
             </View>
             <Text style={styles.toastText}>
               {record.ulds.length > 1 ? 'Tasks' : 'Task'} sent to {toastDriver.vehicle.toLowerCase()}
@@ -259,7 +252,7 @@ function DriverRow({
       <View style={styles.codeChip}>
         <Text style={styles.codeChipText}>{tugCode(driver)}</Text>
       </View>
-      <TractorIcon available={driver.status === 'available'} />
+      <DriverTractor available={driver.status === 'available'} />
       <LoadIcon activeTasks={activeTasks} />
       <View style={{ flex: 1 }}>
         <Text style={styles.driverName}>{driver.name}</Text>
@@ -320,10 +313,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   codeChipText: { color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
-  tractorWrap: { width: 32, height: 25, alignItems: 'center', justifyContent: 'center' },
-  tractorBody: { width: 25, height: 12, borderRadius: 2, position: 'absolute', bottom: 5 },
-  tractorCab: { width: 11, height: 10, borderRadius: 2, position: 'absolute', top: 1, right: 2 },
-  tractorWheel: { width: 7, height: 7, borderRadius: 4, borderWidth: 2, position: 'absolute', bottom: 0 },
   loadBox: {
     width: 27,
     height: 25,

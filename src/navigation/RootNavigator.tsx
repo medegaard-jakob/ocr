@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import AssignDriverScreen from '../screens/AssignDriverScreen';
 import DispatchScreen from '../screens/DispatchScreen';
+import FlightOverviewScreen from '../screens/FlightOverviewScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import HomeScreen from '../screens/HomeScreen';
 import RequestUldBankScreen from '../screens/RequestUldBankScreen';
@@ -45,6 +46,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Dispatch" component={DispatchScreen} options={{ title: 'Transportation order' }} />
         <Stack.Screen name="AssignDriver" component={AssignDriverScreen} options={{ title: 'Driver team' }} />
         <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'Task overview' }} />
+        <Stack.Screen name="FlightOverview" component={FlightOverviewScreen} options={{ title: 'Flight overview' }} />
         <Stack.Screen name="RequestUldCompany" component={RequestUldCompanyScreen} options={{ title: 'Select company' }} />
         <Stack.Screen name="RequestUldType" component={RequestUldTypeScreen} options={{ title: 'ULD type & amount' }} />
         <Stack.Screen name="RequestUldBank" component={RequestUldBankScreen} options={{ title: 'Deliver to' }} />

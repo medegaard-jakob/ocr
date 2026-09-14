@@ -189,16 +189,30 @@ export type TaskStatus = 'overdue' | 'at_risk' | 'on_time' | 'resolved';
 // Warn a bit before the deadline, not just after it's blown.
 const AT_RISK_WINDOW_MS = 15 * 60_000;
 
+/**
+ * Where a deadline sits relative to now: blown, inside the warning window, or
+ * still fine. This is the app's single timing rule -- Task overview grades a
+ * task's delivery deadline through it, Flight overview grades each ULD's
+ * deadline for making its flight -- so the warning window is widened or
+ * narrowed in exactly one place.
+ */
+export function getDeadlineStatus(
+  latestDeliveryTime: number,
+  now: number = Date.now(),
+): Exclude<TaskStatus, 'resolved'> {
+  const remaining = latestDeliveryTime - now;
+  if (remaining < 0) return 'overdue';
+  if (remaining <= AT_RISK_WINDOW_MS) return 'at_risk';
+  return 'on_time';
+}
+
 export function getTaskStatus(
   record: { dispatch?: DispatchInfo; resolvedAt?: number },
   now: number = Date.now(),
 ): TaskStatus {
   if (record.resolvedAt) return 'resolved';
   if (!record.dispatch) return 'on_time';
-  const remaining = record.dispatch.latestDeliveryTime - now;
-  if (remaining < 0) return 'overdue';
-  if (remaining <= AT_RISK_WINDOW_MS) return 'at_risk';
-  return 'on_time';
+  return getDeadlineStatus(record.dispatch.latestDeliveryTime, now);
 }
 
 // Solid, saturated fills (vs. the pastel PRIORITY_META pills) so a task's

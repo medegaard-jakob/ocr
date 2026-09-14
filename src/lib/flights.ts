@@ -28,7 +28,11 @@ export const ULD_STAGES: UldStage[] = [
   'delivered',
 ];
 
-/** Spoken labels for the icon row, which is otherwise icon-and-number only. */
+/**
+ * What each stage means, in full. Used by the legend at the top of the screen
+ * and as the spoken label for each count, so the icon row -- which is
+ * otherwise icons and numbers only -- explains itself exactly one way.
+ */
 export const STAGE_LABELS: Record<UldStage, string> = {
   unknown: 'Unknown',
   empty: 'Empty ULDs assigned',

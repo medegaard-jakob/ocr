@@ -44,11 +44,39 @@ export default function FlightOverviewScreen({ navigation }: Props) {
         data={flights}
         keyExtractor={(f) => f.id}
         contentContainerStyle={flights.length === 0 && styles.emptyContainer}
+        ListHeaderComponent={flights.length > 0 ? <Legend /> : null}
         ListEmptyComponent={<Text style={styles.emptyText}>No active flights</Text>}
         renderItem={({ item }) => <FlightCard flight={item} now={now} />}
       />
       <BottomBar onBack={() => navigation.navigate('Home')} />
     </SafeAreaView>
+  );
+}
+
+/**
+ * What the six marks mean, once at the top of the list. Six abstract icons
+ * and a number is a lot to ask of someone opening this screen for the first
+ * time, and the cards themselves have no room to label each column. It
+ * scrolls away with the list rather than pinning, since it stops being worth
+ * the space as soon as you know the row.
+ */
+function Legend() {
+  return (
+    <View style={styles.legend}>
+      <Text style={styles.legendHeading}>ULD STAGES</Text>
+      <View style={styles.legendGrid}>
+        {ULD_STAGES.map((stage) => (
+          <View key={stage} style={styles.legendItem}>
+            <UldStageIcon stage={stage} color={colors.textSecondary} background={colors.surfaceAlt} />
+            <Text style={styles.legendLabel}>{STAGE_LABELS[stage]}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.legendNote}>
+        Counts read <Text style={styles.legendGreen}>green</Text> once delivered, and{' '}
+        <Text style={styles.legendOrange}>orange</Text> where a ULD is at risk of missing the flight.
+      </Text>
+    </View>
   );
 }
 
@@ -124,6 +152,24 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: colors.textMuted, fontSize: 15 },
+  legend: {
+    gap: 12,
+    margin: 16,
+    padding: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+  },
+  legendHeading: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.6 },
+  legendGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 12, columnGap: 12 },
+  // Two per row: at phone width six columns leaves no room for wording, and
+  // these labels are the whole point of the legend.
+  legendItem: { flexBasis: '46%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendLabel: { flex: 1, fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+  legendNote: { fontSize: 12, color: colors.textMuted, lineHeight: 17 },
+  legendGreen: { color: colors.success, fontWeight: '700' },
+  legendOrange: { color: colors.warning, fontWeight: '700' },
   card: {
     gap: 10,
     paddingHorizontal: 16,

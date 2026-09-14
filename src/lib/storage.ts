@@ -89,6 +89,30 @@ export async function saveLegendCollapsed(collapsed: boolean): Promise<void> {
   await AsyncStorage.setItem(LEGEND_COLLAPSED_KEY, String(collapsed));
 }
 
+/**
+ * The last camera-permission decision we actually saw the user make.
+ *
+ * The browser owns the real permission, and on iOS it isn't kept between
+ * launches of a home-screen web app -- so the scanner asks again on every
+ * launch no matter what we do. What we can avoid is making the supervisor
+ * tap through our own explainer first every single time. Remembering that
+ * they've said yes before lets the scanner go straight to the browser
+ * prompt; remembering a "no" stops it asking unprompted, which is the one
+ * thing that would turn a re-ask into nagging.
+ */
+export type CameraAskOutcome = 'unasked' | 'granted' | 'denied';
+
+const CAMERA_ASK_KEY = 'camera-ask-outcome/v1';
+
+export async function loadCameraAskOutcome(): Promise<CameraAskOutcome> {
+  const raw = await AsyncStorage.getItem(CAMERA_ASK_KEY);
+  return raw === 'granted' || raw === 'denied' ? raw : 'unasked';
+}
+
+export async function saveCameraAskOutcome(outcome: CameraAskOutcome): Promise<void> {
+  await AsyncStorage.setItem(CAMERA_ASK_KEY, outcome);
+}
+
 export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY);
 }

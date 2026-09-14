@@ -16,6 +16,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScanFrameOverlay from '../components/ScanFrameOverlay';
 import { showAlert } from '../lib/alert';
+import {
+  CameraAskOutcome,
+  loadCameraAskOutcome,
+  saveCameraAskOutcome,
+} from '../lib/storage';
 import { colors } from '../lib/theme';
 import { findUldInText, parseUldToken } from '../lib/uld';
 import { MAX_ULDS_PER_RIDE, type RootStackParamList, type UldEntry } from '../types';
@@ -132,6 +137,14 @@ async function captureFrame(
   return text === null ? null : { uri, text };
 }
 
+// Set when an ask comes back without permission, for any reason. Module
+// scope rather than component state because the scanner unmounts every time
+// you step back to Home, and re-asking unprompted on each return would be
+// nagging. Resets on a fresh launch, which is when a failure worth retrying
+// (a camera that wasn't plugged in, a browser that wanted a tap first) is
+// most likely to have changed.
+let autoAskBlockedThisSession = false;
+
 export default function ScannerScreen({ navigation, route }: Props) {
   const ride = route.params?.ride ?? [];
   const [permission, requestPermission] = useCameraPermissions();
@@ -143,12 +156,82 @@ export default function ScannerScreen({ navigation, route }: Props) {
   // attempt found a valid code and is waiting to see the same code again
   // before trusting it -- a random misread almost never repeats itself.
   const [autoHint, setAutoHint] = useState<'scanning' | 'candidate'>('scanning');
+  // What happened last time we asked, remembered across launches. `null`
+  // while it loads out of storage.
+  const [askOutcome, setAskOutcome] = useState<CameraAskOutcome | null>(null);
+  // True while the browser's own prompt is up, so we don't render our
+  // explainer behind it -- a "Grant camera permission" button sitting behind
+  // a live permission dialog reads as two competing asks.
+  const [asking, setAsking] = useState(false);
+  const autoAskedRef = useRef(false);
   const cameraRef = useRef<CameraView>(null);
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const autoBusyRef = useRef(false);
   const candidateRef = useRef<string | null>(null);
   const isFocused = useIsFocused();
+
+  useEffect(() => {
+    loadCameraAskOutcome().then(setAskOutcome);
+  }, []);
+
+  /**
+   * `explicit` means they tapped our own button, rather than this being the
+   * automatic ask when the scanner opened. Only the explicit answer is
+   * remembered across launches: a failed automatic ask is not a decision.
+   * expo-camera reports "no camera on this machine" the same way it reports
+   * "the person said no", and a browser that insists on a tap before opening
+   * the camera looks identical again -- storing any of those as a refusal
+   * would silently switch the automatic ask off forever over something the
+   * supervisor never chose.
+   */
+  const ask = async (explicit: boolean) => {
+    setAsking(true);
+    try {
+      const result = await requestPermission();
+      if (result.granted) {
+        setAskOutcome('granted');
+        saveCameraAskOutcome('granted');
+        return;
+      }
+      autoAskBlockedThisSession = true;
+      if (explicit) {
+        setAskOutcome('denied');
+        saveCameraAskOutcome('denied');
+        showAlert(
+          'Camera access unavailable',
+          result.canAskAgain === false
+            ? 'Camera permission was denied. Enable it in your browser/system settings, or use "Enter manually" below.'
+            : 'Camera access was not granted. Use "Enter manually" below to try the rest of the app.',
+        );
+      }
+    } catch (err) {
+      autoAskBlockedThisSession = true;
+      if (explicit) {
+        showAlert(
+          'Camera access unavailable',
+          `This environment blocked camera access (${err instanceof Error ? err.message : String(err)}). ` +
+            'Use "Enter manually" below to try the rest of the app.',
+        );
+      }
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  // Ask as soon as the scanner opens rather than making them tap through an
+  // explainer first: they got here by choosing "Make task", so the reason for
+  // wanting the camera is already established. The one case we stay quiet in
+  // is after they've said no -- asking unprompted every time they open the
+  // scanner would be nagging, so that's when the explainer earns its place.
+  useEffect(() => {
+    if (autoAskedRef.current || !permission || askOutcome === null) return;
+    autoAskedRef.current = true;
+    if (permission.granted || !permission.canAskAgain) return;
+    if (askOutcome === 'denied' || autoAskBlockedThisSession) return;
+    void ask(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permission, askOutcome]);
 
   const handleCapture = async () => {
     if (!cameraRef.current || busy || autoBusyRef.current) return;
@@ -237,26 +320,6 @@ export default function ScannerScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleRequestPermission = async () => {
-    try {
-      const result = await requestPermission();
-      if (!result.granted) {
-        showAlert(
-          'Camera access unavailable',
-          result.canAskAgain === false
-            ? 'Camera permission was denied. Enable it in your browser/system settings, or use "Enter manually" below.'
-            : 'Camera access was not granted. Use "Enter manually" below to try the rest of the app.',
-        );
-      }
-    } catch (err) {
-      showAlert(
-        'Camera access unavailable',
-        `This environment blocked camera access (${err instanceof Error ? err.message : String(err)}). ` +
-          'Use "Enter manually" below to try the rest of the app.',
-      );
-    }
-  };
-
   const submitManual = () => {
     const uld = parseUldToken(manualText);
     if (!uld) {
@@ -303,24 +366,38 @@ export default function ScannerScreen({ navigation, route }: Props) {
     </Modal>
   );
 
-  if (!permission) {
+  // Nothing to show yet, or the browser's prompt is up: stay blank rather
+  // than flashing the explainer for the moment it takes to resolve.
+  if (!permission || askOutcome === null || asking) {
     return <View style={styles.center} />;
   }
 
   if (!permission.granted) {
+    // Blocked at the browser level -- asking again does nothing, so don't
+    // offer a button that can't work. Say where the switch actually is.
+    const blocked = !permission.canAskAgain;
     return (
       <SafeAreaView style={styles.center}>
         <Pressable style={styles.backButtonTop} onPress={goHome}>
           <Text style={styles.backButtonTopText}>← Back</Text>
         </Pressable>
         <Text style={styles.permissionText}>
-          Camera access is needed to scan ULD ID placards.
+          {blocked
+            ? 'Camera access is blocked for this site. Turn it back on in your browser settings to scan, or enter the code by hand.'
+            : 'Camera access is needed to scan ULD ID placards.'}
         </Text>
-        <Pressable style={styles.primaryButton} onPress={handleRequestPermission}>
-          <Text style={styles.primaryButtonText}>Grant camera permission</Text>
-        </Pressable>
-        <Pressable style={styles.secondaryButton} onPress={() => setManualVisible(true)}>
-          <Text style={styles.secondaryButtonText}>Enter manually instead</Text>
+        {!blocked && (
+          <Pressable style={styles.primaryButton} onPress={() => ask(true)}>
+            <Text style={styles.primaryButtonText}>Grant camera permission</Text>
+          </Pressable>
+        )}
+        <Pressable
+          style={blocked ? styles.primaryButton : styles.secondaryButton}
+          onPress={() => setManualVisible(true)}
+        >
+          <Text style={blocked ? styles.primaryButtonText : styles.secondaryButtonText}>
+            Enter manually instead
+          </Text>
         </Pressable>
         {manualEntryModal}
       </SafeAreaView>

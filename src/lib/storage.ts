@@ -76,6 +76,19 @@ export async function deleteRecord(id: string): Promise<ScanRecord[]> {
   return next;
 }
 
+// Whether the supervisor has minimized the Flight overview legend. Kept
+// because a legend that reopens on every visit isn't really minimizable --
+// you learn the icon row once, then want the space back for good.
+const LEGEND_COLLAPSED_KEY = 'flight-legend-collapsed/v1';
+
+export async function loadLegendCollapsed(): Promise<boolean> {
+  return (await AsyncStorage.getItem(LEGEND_COLLAPSED_KEY)) === 'true';
+}
+
+export async function saveLegendCollapsed(collapsed: boolean): Promise<void> {
+  await AsyncStorage.setItem(LEGEND_COLLAPSED_KEY, String(collapsed));
+}
+
 export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY);
 }

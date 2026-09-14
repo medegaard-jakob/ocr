@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomBar from '../components/BottomBar';
 import UldStageIcon from '../components/UldStageIcon';
@@ -16,6 +16,7 @@ import {
   stageAtRisk,
   stageCount,
 } from '../lib/flights';
+import { loadLegendCollapsed, saveLegendCollapsed } from '../lib/storage';
 import { colors } from '../lib/theme';
 import { KNOWN_AIRLINE_CODES } from '../lib/uld';
 import type { RootStackParamList } from '../types';
@@ -29,6 +30,23 @@ export default function FlightOverviewScreen({ navigation }: Props) {
   // deadline sliding forward out of reach.
   const [flights] = useState<Flight[]>(() => getMockFlights());
   const [now, setNow] = useState(() => Date.now());
+
+  // null until the stored preference resolves. Rendering the legend before
+  // then would flash it open in front of someone who already minimized it,
+  // which is exactly the space they asked to get back.
+  const [legendCollapsed, setLegendCollapsed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    loadLegendCollapsed().then(setLegendCollapsed);
+  }, []);
+
+  const toggleLegend = () => {
+    setLegendCollapsed((wasCollapsed) => {
+      const next = !wasCollapsed;
+      saveLegendCollapsed(next);
+      return next;
+    });
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -44,7 +62,11 @@ export default function FlightOverviewScreen({ navigation }: Props) {
         data={flights}
         keyExtractor={(f) => f.id}
         contentContainerStyle={flights.length === 0 && styles.emptyContainer}
-        ListHeaderComponent={flights.length > 0 ? <Legend /> : null}
+        ListHeaderComponent={
+          flights.length > 0 && legendCollapsed !== null ? (
+            <Legend collapsed={legendCollapsed} onToggle={toggleLegend} />
+          ) : null
+        }
         ListEmptyComponent={<Text style={styles.emptyText}>No active flights</Text>}
         renderItem={({ item }) => <FlightCard flight={item} now={now} />}
       />
@@ -56,14 +78,27 @@ export default function FlightOverviewScreen({ navigation }: Props) {
 /**
  * What the six marks mean, once at the top of the list. Six abstract icons
  * and a number is a lot to ask of someone opening this screen for the first
- * time, and the cards themselves have no room to label each column. It
- * scrolls away with the list rather than pinning, since it stops being worth
- * the space as soon as you know the row.
+ * time, and the cards themselves have no room to label each column.
+ *
+ * Minimizable, and the choice sticks: you learn the row once, and after that
+ * the space belongs to the flights. Collapsed it leaves only its heading, so
+ * the way back is still visible.
  */
-function Legend() {
+function Legend({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   return (
     <View style={styles.legend}>
-      <Text style={styles.legendHeading}>ULD STAGES</Text>
+      <Pressable
+        style={styles.legendHeader}
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: !collapsed }}
+        accessibilityLabel={collapsed ? 'Show ULD stage legend' : 'Hide ULD stage legend'}
+        hitSlop={8}
+      >
+        <Text style={styles.legendHeading}>ULD STAGES</Text>
+        <Text style={styles.legendToggle}>{collapsed ? 'Show ▾' : 'Hide ▴'}</Text>
+      </Pressable>
+      {collapsed ? null : (
       <View style={styles.legendGrid}>
         {ULD_STAGES.map((stage) => (
           <View key={stage} style={styles.legendItem}>
@@ -72,10 +107,13 @@ function Legend() {
           </View>
         ))}
       </View>
-      <Text style={styles.legendNote}>
-        Counts read <Text style={styles.legendGreen}>green</Text> once delivered, and{' '}
-        <Text style={styles.legendOrange}>orange</Text> where a ULD is at risk of missing the flight.
-      </Text>
+      )}
+      {collapsed ? null : (
+        <Text style={styles.legendNote}>
+          Counts read <Text style={styles.legendGreen}>green</Text> once delivered, and{' '}
+          <Text style={styles.legendOrange}>orange</Text> where a ULD is at risk of missing the flight.
+        </Text>
+      )}
     </View>
   );
 }
@@ -161,7 +199,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surfaceAlt,
   },
+  legendHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   legendHeading: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.6 },
+  legendToggle: { fontSize: 12, fontWeight: '700', color: colors.accent },
   legendGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 12, columnGap: 12 },
   // Two per row: at phone width six columns leaves no room for wording, and
   // these labels are the whole point of the legend.

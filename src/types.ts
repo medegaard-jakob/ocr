@@ -43,6 +43,10 @@ export type RootStackParamList = {
   Scanner: { ride?: UldEntry[] } | undefined;
   /** `entry` is the just-captured ULD awaiting confirmation; `ride` is what's already confirmed. */
   Result: { entry: UldEntry; ride: UldEntry[] };
+  /** "Make task - B": the experimental continuous scanner, alongside Scanner. */
+  ContinuousScanner: undefined;
+  /** Everything that scanner caught, for triage before it becomes a task. */
+  ScanReview: { entries: UldEntry[] };
   Dispatch: { record: ScanRecord };
   AssignDriver: { record: ScanRecord };
   History: undefined;

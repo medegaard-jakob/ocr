@@ -1,7 +1,7 @@
 import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView } from 'expo-camera';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,138 +16,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScanFrameOverlay from '../components/ScanFrameOverlay';
 import { showAlert } from '../lib/alert';
-import {
-  CameraAskOutcome,
-  loadCameraAskOutcome,
-  saveCameraAskOutcome,
-} from '../lib/storage';
+import { captureFrame } from '../lib/ocr';
+import { useCameraAccess } from '../lib/useCameraAccess';
 import { colors } from '../lib/theme';
 import { findUldInText, parseUldToken } from '../lib/uld';
 import { MAX_ULDS_PER_RIDE, type RootStackParamList, type UldEntry } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Scanner'>;
 
-// The OCR engine (@react-native-ml-kit/text-recognition) is native code and
-// is not present in Expo Go. It only works in a custom dev-client / release
-// build. We probe for it lazily so the rest of the app still runs in Expo Go
-// for UI development, with "Enter manually" as a fallback scanning path.
-function loadTextRecognizer(): typeof import('@react-native-ml-kit/text-recognition').default | null {
-  try {
-    return require('@react-native-ml-kit/text-recognition').default;
-  } catch {
-    return null;
-  }
-}
-
-// On web there's no native module to load -- Tesseract.js runs OCR entirely
-// client-side (WASM), so it's always available there. Returns null only on
-// native platforms without a dev-client build (ML Kit not linked).
-//
-// A ULD code is only ever [A-Z0-9], and it's usually one isolated block of
-// text on a label that also carries a barcode, airline logo, and other
-// printed clutter. Tesseract's defaults are tuned for reading full pages of
-// prose, not that -- so we whitelist the character set (misreads can only
-// ever land on a letter/digit, never stray punctuation) and switch to
-// SPARSE_TEXT page segmentation (built for finding isolated blocks of text
-// scattered in an image, rather than assuming one uniform paragraph).
-// The worker is created once and reused across scans in a ride instead of
-// re-initializing (and re-downloading the WASM core) on every capture.
-let webWorkerPromise: ReturnType<typeof import('tesseract.js').createWorker> | null = null;
-
-async function getWebOcrWorker() {
-  if (!webWorkerPromise) {
-    webWorkerPromise = (async () => {
-      const { createWorker, PSM } = await import('tesseract.js');
-      const worker = await createWorker('eng');
-      await worker.setParameters({
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-        tessedit_pageseg_mode: PSM.SPARSE_TEXT,
-      });
-      return worker;
-    })();
-  }
-  return webWorkerPromise;
-}
-
-async function recognizeText(uri: string): Promise<string | null> {
-  if (Platform.OS === 'web') {
-    const worker = await getWebOcrWorker();
-    const result = await worker.recognize(uri);
-    return result.data.text;
-  }
-  const TextRecognition = loadTextRecognizer();
-  if (!TextRecognition) return null;
-  const result = await TextRecognition.recognize(uri);
-  return result.text;
-}
-
-// Web camera captures return a full-resolution base64 data: URI. Storing
-// that as-is quickly blows the ~5-10MB localStorage quota that
-// AsyncStorage's web shim writes to (one photo can be several MB), which
-// makes the *next* save -- e.g. confirming a driver assignment -- fail
-// silently. Shrink to a small thumbnail before it ever reaches storage;
-// OCR already ran on the full-res original by the time this is called.
-function downscaleDataUrl(dataUrl: string, maxSide = 480, quality = 0.7): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-      const w = Math.max(1, Math.round(img.width * scale));
-      const h = Math.max(1, Math.round(img.height * scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Canvas 2D context unavailable'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.onerror = () => reject(new Error('Could not downscale captured image'));
-    img.src = dataUrl;
-  });
-}
-
-// One capture-and-recognize pass, shared by both the manual shutter and the
-// auto-scan loop below. Downscaling *before* OCR (not just before storage)
-// keeps each Tesseract pass fast enough to run repeatedly -- a ULD code is
-// large printed text, so it stays readable well below full sensor
-// resolution -- and the same downscaled image doubles as the stored
-// thumbnail, so there's no second resize pass needed later.
-async function captureFrame(
-  cameraRef: React.RefObject<CameraView | null>,
-  quality: number,
-): Promise<{ uri: string; text: string } | null> {
-  if (!cameraRef.current) return null;
-  const photo = await cameraRef.current.takePictureAsync({ quality });
-  if (!photo) return null;
-
-  let uri = photo.uri;
-  if (Platform.OS === 'web') {
-    try {
-      uri = await downscaleDataUrl(photo.uri, 640, 0.7);
-    } catch {
-      // Fall back to the full-res capture; slower, but still correct.
-    }
-  }
-
-  const text = await recognizeText(uri);
-  return text === null ? null : { uri, text };
-}
-
-// Set when an ask comes back without permission, for any reason. Module
-// scope rather than component state because the scanner unmounts every time
-// you step back to Home, and re-asking unprompted on each return would be
-// nagging. Resets on a fresh launch, which is when a failure worth retrying
-// (a camera that wasn't plugged in, a browser that wanted a tap first) is
-// most likely to have changed.
-let autoAskBlockedThisSession = false;
-
 export default function ScannerScreen({ navigation, route }: Props) {
   const ride = route.params?.ride ?? [];
-  const [permission, requestPermission] = useCameraPermissions();
+  const { permission, resolved: accessResolved, asking, ask } = useCameraAccess();
   const [torch, setTorch] = useState(false);
   const [busy, setBusy] = useState(false);
   const [manualVisible, setManualVisible] = useState(false);
@@ -156,82 +35,12 @@ export default function ScannerScreen({ navigation, route }: Props) {
   // attempt found a valid code and is waiting to see the same code again
   // before trusting it -- a random misread almost never repeats itself.
   const [autoHint, setAutoHint] = useState<'scanning' | 'candidate'>('scanning');
-  // What happened last time we asked, remembered across launches. `null`
-  // while it loads out of storage.
-  const [askOutcome, setAskOutcome] = useState<CameraAskOutcome | null>(null);
-  // True while the browser's own prompt is up, so we don't render our
-  // explainer behind it -- a "Grant camera permission" button sitting behind
-  // a live permission dialog reads as two competing asks.
-  const [asking, setAsking] = useState(false);
-  const autoAskedRef = useRef(false);
   const cameraRef = useRef<CameraView>(null);
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const autoBusyRef = useRef(false);
   const candidateRef = useRef<string | null>(null);
   const isFocused = useIsFocused();
-
-  useEffect(() => {
-    loadCameraAskOutcome().then(setAskOutcome);
-  }, []);
-
-  /**
-   * `explicit` means they tapped our own button, rather than this being the
-   * automatic ask when the scanner opened. Only the explicit answer is
-   * remembered across launches: a failed automatic ask is not a decision.
-   * expo-camera reports "no camera on this machine" the same way it reports
-   * "the person said no", and a browser that insists on a tap before opening
-   * the camera looks identical again -- storing any of those as a refusal
-   * would silently switch the automatic ask off forever over something the
-   * supervisor never chose.
-   */
-  const ask = async (explicit: boolean) => {
-    setAsking(true);
-    try {
-      const result = await requestPermission();
-      if (result.granted) {
-        setAskOutcome('granted');
-        saveCameraAskOutcome('granted');
-        return;
-      }
-      autoAskBlockedThisSession = true;
-      if (explicit) {
-        setAskOutcome('denied');
-        saveCameraAskOutcome('denied');
-        showAlert(
-          'Camera access unavailable',
-          result.canAskAgain === false
-            ? 'Camera permission was denied. Enable it in your browser/system settings, or use "Enter manually" below.'
-            : 'Camera access was not granted. Use "Enter manually" below to try the rest of the app.',
-        );
-      }
-    } catch (err) {
-      autoAskBlockedThisSession = true;
-      if (explicit) {
-        showAlert(
-          'Camera access unavailable',
-          `This environment blocked camera access (${err instanceof Error ? err.message : String(err)}). ` +
-            'Use "Enter manually" below to try the rest of the app.',
-        );
-      }
-    } finally {
-      setAsking(false);
-    }
-  };
-
-  // Ask as soon as the scanner opens rather than making them tap through an
-  // explainer first: they got here by choosing "Make task", so the reason for
-  // wanting the camera is already established. The one case we stay quiet in
-  // is after they've said no -- asking unprompted every time they open the
-  // scanner would be nagging, so that's when the explainer earns its place.
-  useEffect(() => {
-    if (autoAskedRef.current || !permission || askOutcome === null) return;
-    autoAskedRef.current = true;
-    if (permission.granted || !permission.canAskAgain) return;
-    if (askOutcome === 'denied' || autoAskBlockedThisSession) return;
-    void ask(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [permission, askOutcome]);
 
   const handleCapture = async () => {
     if (!cameraRef.current || busy || autoBusyRef.current) return;
@@ -368,7 +177,7 @@ export default function ScannerScreen({ navigation, route }: Props) {
 
   // Nothing to show yet, or the browser's prompt is up: stay blank rather
   // than flashing the explainer for the moment it takes to resolve.
-  if (!permission || askOutcome === null || asking) {
+  if (!permission || !accessResolved || asking) {
     return <View style={styles.center} />;
   }
 

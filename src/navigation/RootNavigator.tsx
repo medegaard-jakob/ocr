@@ -2,6 +2,7 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import AssignDriverScreen from '../screens/AssignDriverScreen';
+import ContinuousScannerScreen from '../screens/ContinuousScannerScreen';
 import DispatchScreen from '../screens/DispatchScreen';
 import FlightOverviewScreen from '../screens/FlightOverviewScreen';
 import HistoryScreen from '../screens/HistoryScreen';
@@ -11,6 +12,7 @@ import RequestUldCompanyScreen from '../screens/RequestUldCompanyScreen';
 import RequestUldTimeScreen from '../screens/RequestUldTimeScreen';
 import RequestUldTypeScreen from '../screens/RequestUldTypeScreen';
 import ResultScreen from '../screens/ResultScreen';
+import ScanReviewScreen from '../screens/ScanReviewScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import { colors } from '../lib/theme';
 import type { RootStackParamList } from '../types';
@@ -43,6 +45,8 @@ export default function RootNavigator() {
         <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Scanner" component={ScannerScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Scan result' }} />
+        <Stack.Screen name="ContinuousScanner" component={ContinuousScannerScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="ScanReview" component={ScanReviewScreen} options={{ title: 'Review scanned ULDs' }} />
         <Stack.Screen name="Dispatch" component={DispatchScreen} options={{ title: 'Transportation order' }} />
         <Stack.Screen name="AssignDriver" component={AssignDriverScreen} options={{ title: 'Driver team' }} />
         <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'Task overview' }} />

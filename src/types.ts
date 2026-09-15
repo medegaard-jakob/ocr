@@ -47,6 +47,8 @@ export type RootStackParamList = {
   ContinuousScanner: undefined;
   /** Everything that scanner caught, for triage before it becomes a task. */
   ScanReview: { entries: UldEntry[] };
+  /** Set where the task runs from and to, before dispatch. Both flows pass here. */
+  TaskRoute: { record: ScanRecord };
   Dispatch: { record: ScanRecord };
   AssignDriver: { record: ScanRecord };
   History: undefined;

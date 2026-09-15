@@ -145,7 +145,19 @@ export default function DispatchScreen({ route, navigation }: Props) {
             </View>
           </View>
           <Text style={styles.routeLabel}>
-            {uldCountLabel} <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
+            {uldCountLabel}{' '}
+            {dispatch.origin ? (
+              <>
+                <Text style={styles.routeLabelMuted}>from </Text>
+                {dispatch.origin}
+                <Text style={styles.routeLabelMuted}> to </Text>
+                {dispatch.stand}
+              </>
+            ) : (
+              // Tasks made before the route step, and empty-ULD requests,
+              // have no origin -- they read exactly as they always did.
+              <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
+            )}
           </Text>
 
           {!task.isEmptyRequest && (

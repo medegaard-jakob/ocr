@@ -43,7 +43,7 @@ export default function ResultScreen({ route, navigation }: Props) {
       showAlert('Invalid code', 'Fix the ULD code before continuing (3 letters + 4-5 digits + 2-3 letters).');
       return;
     }
-    navigation.navigate('Dispatch', {
+    navigation.navigate('TaskRoute', {
       record: {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         timestamp: Date.now(),

@@ -170,7 +170,19 @@ export default function HistoryScreen({ navigation }: Props) {
                   )}
                 </View>
 
-                {item.dispatch && <Text style={styles.standText}>{item.dispatch.stand}</Text>}
+                {item.dispatch && (
+                  <Text style={styles.standText}>
+                    {item.dispatch.origin ? (
+                      <>
+                        {item.dispatch.origin}
+                        <Text style={styles.standArrow}> → </Text>
+                        {item.dispatch.stand}
+                      </>
+                    ) : (
+                      item.dispatch.stand
+                    )}
+                  </Text>
+                )}
 
                 <Text style={styles.code}>
                   {item.isEmptyRequest
@@ -236,6 +248,7 @@ const styles = StyleSheet.create({
   statusPill: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 },
   statusPillText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
   standText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
+  standArrow: { color: colors.textSecondary, fontWeight: '400' },
   code: { fontSize: 23, fontWeight: '700', color: colors.textPrimary, letterSpacing: 1 },
   codeExtra: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0 },
   timestamp: { fontSize: 13, color: colors.textSecondary },

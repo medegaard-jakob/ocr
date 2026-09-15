@@ -13,6 +13,7 @@ import RequestUldTimeScreen from '../screens/RequestUldTimeScreen';
 import RequestUldTypeScreen from '../screens/RequestUldTypeScreen';
 import ResultScreen from '../screens/ResultScreen';
 import ScanReviewScreen from '../screens/ScanReviewScreen';
+import TaskRouteScreen from '../screens/TaskRouteScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import { colors } from '../lib/theme';
 import type { RootStackParamList } from '../types';
@@ -47,6 +48,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Scan result' }} />
         <Stack.Screen name="ContinuousScanner" component={ContinuousScannerScreen} options={{ headerShown: false }} />
         <Stack.Screen name="ScanReview" component={ScanReviewScreen} options={{ title: 'Review scanned ULDs' }} />
+        <Stack.Screen name="TaskRoute" component={TaskRouteScreen} options={{ title: 'Task route' }} />
         <Stack.Screen name="Dispatch" component={DispatchScreen} options={{ title: 'Transportation order' }} />
         <Stack.Screen name="AssignDriver" component={AssignDriverScreen} options={{ title: 'Driver team' }} />
         <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'Task overview' }} />

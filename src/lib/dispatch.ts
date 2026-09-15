@@ -6,12 +6,24 @@
  * demo feel consistent across repeated scans instead of re-randomizing.
  */
 
+import { MOCK_LOCATION_CONFIG, formatLocation } from './locations';
 import { colors } from './theme';
 
 export type Priority = 'standard' | 'priority' | 'aog';
 
 export interface DispatchInfo {
+  /**
+   * Where the task ends: the label of a place, not necessarily a stand. The
+   * field kept its old name because it is on every stored task; it has held
+   * non-stand values since the empty-ULD flow started writing a bank into it.
+   */
   stand: string;
+  /**
+   * Where the task starts. Optional because tasks made before the route step
+   * existed have no origin, and the empty-ULD flow still doesn't set one --
+   * those render their destination alone, exactly as they always did.
+   */
+  origin?: string;
   startTime: number;
   latestDeliveryTime: number;
   priority: Priority;
@@ -120,6 +132,12 @@ export function generateDispatchInfo(uldCode: string, now: number = Date.now()):
   const number = 1 + Math.floor(rand() * 32);
   const stand = `Stand ${prefix}${number}`;
 
+  // A ULD being taken to a stand has almost always come off full storage, so
+  // that's the opening guess -- the route step exists to correct it when it's
+  // wrong, not to make the supervisor fill it in from nothing.
+  const areas = MOCK_LOCATION_CONFIG.fullStorageAreas;
+  const origin = formatLocation('full_storage', areas[Math.floor(rand() * areas.length)]);
+
   const priorityRoll = rand();
   const priority: Priority = priorityRoll < 0.1 ? 'aog' : priorityRoll < 0.4 ? 'priority' : 'standard';
 
@@ -134,7 +152,7 @@ export function generateDispatchInfo(uldCode: string, now: number = Date.now()):
   const startTime = now + startOffsetMin * 60_000;
   const latestDeliveryTime = startTime + windowMin * 60_000;
 
-  return { stand, startTime, latestDeliveryTime, priority };
+  return { stand, origin, startTime, latestDeliveryTime, priority };
 }
 
 const TEST_TYPE_CODES = ['AKE', 'PMC', 'ALF', 'DPE'];

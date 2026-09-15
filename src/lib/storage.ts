@@ -113,6 +113,35 @@ export async function saveCameraAskOutcome(outcome: CameraAskOutcome): Promise<v
   await AsyncStorage.setItem(CAMERA_ASK_KEY, outcome);
 }
 
+/**
+ * Places typed under "Other", most recent first.
+ *
+ * The four named types are taps; Other is the one that needs a keyboard, and
+ * a place worth typing once is usually worth typing again that week. Offering
+ * the last few back turns the slowest branch of the picker into a tap.
+ */
+const RECENT_PLACES_KEY = 'recent-other-places/v1';
+const MAX_RECENT_PLACES = 5;
+
+export async function loadRecentPlaces(): Promise<string[]> {
+  const raw = await AsyncStorage.getItem(RECENT_PLACES_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function rememberPlace(place: string): Promise<void> {
+  const trimmed = place.trim();
+  if (!trimmed) return;
+  const existing = await loadRecentPlaces();
+  const next = [trimmed, ...existing.filter((p) => p !== trimmed)].slice(0, MAX_RECENT_PLACES);
+  await AsyncStorage.setItem(RECENT_PLACES_KEY, JSON.stringify(next));
+}
+
 export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY);
 }

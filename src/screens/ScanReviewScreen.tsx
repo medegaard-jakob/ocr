@@ -50,7 +50,7 @@ export default function ScanReviewScreen({ navigation, route }: Props) {
 
   const onConfirm = () => {
     if (kept.length === 0) return;
-    navigation.navigate('Dispatch', {
+    navigation.navigate('TaskRoute', {
       record: {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         timestamp: Date.now(),

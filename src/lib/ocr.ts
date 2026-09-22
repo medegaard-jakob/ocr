@@ -17,17 +17,17 @@ import React from 'react';
 // is already zoomed in well past 1x. A value that's effectively zero but not
 // literally 0 clears that bug and forces an explicit zoom onto the track.
 //
-// Deliberately not the literal minimum: on a phone with multiple rear
-// lenses, some browsers expose one continuous zoom range spanning
-// ultra-wide through tele as a single track, where the very bottom of that
-// range switches to the ultra-wide lens rather than just widening the main
-// lens's framing. That trades away exactly the resolution a small placard
-// needs to stay readable after the OCR pass's own downscaling -- reported
-// as scans that stopped being recognized at all right after zoom was first
-// forced to 0.01. Staying a bit off the floor keeps the "stand too far
-// back" fix without risking that lens switch. Shared by both scanner
-// screens so their camera preview always frames the same way.
-export const MIN_ZOOM = 0.12;
+// Briefly raised to 0.12 on a theory that the literal minimum could switch
+// some multi-lens phones to an ultra-wide sensor -- real-device testing
+// showed that was wrong: 0.12 reproduced the exact original "too zoomed in"
+// complaint this constant exists to fix, meaning even a normalized value
+// this small maps to real, visible zoom on at least some devices' native
+// range. Back to 0.01, as close to the literal floor as the falsy-0 bug
+// allows. If a scan-recognition regression shows up again, look at the OCR
+// downscale resolution below or the OCR tuning itself before raising this
+// again. Shared by both scanner screens so their camera preview always
+// frames the same way.
+export const MIN_ZOOM = 0.01;
 
 // The OCR engine (@react-native-ml-kit/text-recognition) is native code and
 // is not present in Expo Go. It only works in a custom dev-client / release

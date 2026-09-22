@@ -15,11 +15,19 @@ import React from 'react';
 // value as "no change requested" and just leaves whatever zoom level the
 // browser/device happened to open the camera stream at, which on many phones
 // is already zoomed in well past 1x. A value that's effectively zero but not
-// literally 0 clears that bug and forces the track to the minimum (widest)
-// zoom, which is what actually fixes having to stand unnaturally far back to
-// fit a placard in frame. Shared by both scanner screens so their camera
-// preview always frames the same way.
-export const MIN_ZOOM = 0.01;
+// literally 0 clears that bug and forces an explicit zoom onto the track.
+//
+// Deliberately not the literal minimum: on a phone with multiple rear
+// lenses, some browsers expose one continuous zoom range spanning
+// ultra-wide through tele as a single track, where the very bottom of that
+// range switches to the ultra-wide lens rather than just widening the main
+// lens's framing. That trades away exactly the resolution a small placard
+// needs to stay readable after the OCR pass's own downscaling -- reported
+// as scans that stopped being recognized at all right after zoom was first
+// forced to 0.01. Staying a bit off the floor keeps the "stand too far
+// back" fix without risking that lens switch. Shared by both scanner
+// screens so their camera preview always frames the same way.
+export const MIN_ZOOM = 0.12;
 
 // The OCR engine (@react-native-ml-kit/text-recognition) is native code and
 // is not present in Expo Go. It only works in a custom dev-client / release
@@ -106,10 +114,19 @@ function downscaleDataUrl(dataUrl: string, maxSide = 480, quality = 0.7): Promis
 
 // One capture-and-recognize pass, shared by both the manual shutter and the
 // auto-scan loop below. Downscaling *before* OCR (not just before storage)
-// keeps each Tesseract pass fast enough to run repeatedly -- a ULD code is
-// large printed text, so it stays readable well below full sensor
-// resolution -- and the same downscaled image doubles as the stored
-// thumbnail, so there's no second resize pass needed later.
+// keeps each Tesseract pass fast enough to run repeatedly, and the same
+// downscaled image doubles as the stored thumbnail, so there's no second
+// resize pass needed later.
+//
+// 960px (up from an original 640px): a ULD code is large printed text, but
+// only relative to the whole placard -- at the wider framing MIN_ZOOM now
+// opens the camera at, that placard itself is a smaller fraction of the
+// frame than when the camera defaulted to some unpredictable zoomed-in
+// level, so the code needs more of the frame's pixels than before to stay
+// legible after this resize. Slower per Tesseract pass, but a slower read
+// beats one that never resolves.
+const OCR_DOWNSCALE_MAX_SIDE = 960;
+
 export async function captureFrame(
   cameraRef: React.RefObject<CameraView | null>,
   quality: number,
@@ -121,7 +138,7 @@ export async function captureFrame(
   let uri = photo.uri;
   if (Platform.OS === 'web') {
     try {
-      uri = await downscaleDataUrl(photo.uri, 640, 0.7);
+      uri = await downscaleDataUrl(photo.uri, OCR_DOWNSCALE_MAX_SIDE, 0.7);
     } catch {
       // Fall back to the full-res capture; slower, but still correct.
     }

@@ -40,11 +40,12 @@ export default function HomeScreen({ navigation }: Props) {
   );
 
   const items: MenuItem[] = [
-    { label: 'Make task', onPress: () => navigation.navigate('Scanner') },
+    { label: 'Make task - A', onPress: () => navigation.navigate('Scanner') },
+    { label: 'Make task - B', onPress: () => navigation.navigate('ContinuousScanner') },
     { label: 'Request empty ULD', onPress: () => navigation.navigate('RequestUldCompany') },
     { label: 'Task overview', onPress: () => navigation.navigate('History') },
     { label: 'Full Can Store overview' },
-    { label: 'Flight overview' },
+    { label: 'Flight overview', onPress: () => navigation.navigate('FlightOverview') },
     { label: 'Via' },
     { label: 'Map' },
   ];

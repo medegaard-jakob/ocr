@@ -19,7 +19,12 @@ export interface ScanRecord {
   ulds: UldEntry[];
   /** Where/when this ride needs to go. Set once the scan reaches the dispatch step. */
   dispatch?: DispatchInfo;
-  /** Driver assigned to move it. Set once dispatch is confirmed. */
+  /** Id of the driver assigned to move it. Set once dispatch is confirmed.
+   *  This is the assignment -- read it through `taskDriver()` so every screen
+   *  resolves the same driver off the live roster. */
+  driverId?: string;
+  /** Snapshot of the driver at assign time. Kept only so a task assigned to
+   *  someone no longer on the roster still has a name to show. */
   driver?: Driver;
   /** Set once the supervisor marks this task resolved; stops it counting as overdue. */
   resolvedAt?: number;
@@ -38,9 +43,16 @@ export type RootStackParamList = {
   Scanner: { ride?: UldEntry[] } | undefined;
   /** `entry` is the just-captured ULD awaiting confirmation; `ride` is what's already confirmed. */
   Result: { entry: UldEntry; ride: UldEntry[] };
+  /** "Make task - B": the experimental continuous scanner, alongside Scanner. */
+  ContinuousScanner: undefined;
+  /** Everything that scanner caught, for triage before it becomes a task. */
+  ScanReview: { entries: UldEntry[] };
+  /** Set where the task runs from and to, before dispatch. Both flows pass here. */
+  TaskRoute: { record: ScanRecord };
   Dispatch: { record: ScanRecord };
   AssignDriver: { record: ScanRecord };
   History: undefined;
+  FlightOverview: undefined;
   RequestUldCompany: undefined;
   RequestUldType: { companyCode: string };
   RequestUldBank: { companyCode: string; typeCode: string; amount: number };

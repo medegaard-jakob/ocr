@@ -12,6 +12,7 @@ import {
   formatRelative,
   generateDispatchInfo,
   getTaskStatus,
+  taskDriver,
 } from '../lib/dispatch';
 import { saveRecord } from '../lib/storage';
 import { colors } from '../lib/theme';
@@ -62,6 +63,10 @@ export default function DispatchScreen({ route, navigation }: Props) {
     dispatch: initialRecord.dispatch ?? generateDispatchInfo(seed),
   }));
   const [nudgeToast, setNudgeToast] = useState(false);
+  // Whether the task was resolved here, on this visit, as opposed to being
+  // opened from Task overview already resolved. Only the first is a moment
+  // worth confirming and then leaving.
+  const [resolvedHere, setResolvedHere] = useState(false);
 
   // Re-render periodically so "overdue by Xm" / at-risk status stays live
   // while the supervisor is looking at this screen.
@@ -72,6 +77,7 @@ export default function DispatchScreen({ route, navigation }: Props) {
   }, []);
 
   const dispatch = task.dispatch!;
+  const driver = taskDriver(task);
   const now = Date.now();
   const status = getTaskStatus(task, now);
   const statusMeta = status !== 'on_time' ? TASK_STATUS_META[status] : null;
@@ -87,21 +93,29 @@ export default function DispatchScreen({ route, navigation }: Props) {
     setTask(updated);
     try {
       await saveRecord(updated);
+      setResolvedHere(true);
     } catch (err) {
+      // Stay put on a failed save, so the alert isn't yanked away by the
+      // auto-return below before it can be read.
       showAlert('Could not save', err instanceof Error ? err.message : String(err));
     }
   };
 
-  // Once resolved, this screen's job is done -- briefly show the
-  // confirmation banner below, then head back to Task overview instead of
-  // leaving the supervisor stuck needing the back button to get there.
+  // Having just resolved the task here, this screen's job is done: show the
+  // confirmation banner briefly, then head back to Task overview rather than
+  // leaving the supervisor to find the back button.
+  //
+  // Keyed to resolving it *on this visit*, not to the task being resolved.
+  // Those look the same from the state alone, and treating them alike meant
+  // opening a long-since-resolved task from the list also bounced you out a
+  // second later, as though the app had closed the screen on you.
   useEffect(() => {
-    if (status !== 'resolved') return;
+    if (!resolvedHere) return;
     const timer = setTimeout(() => {
       navigation.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'History' }] }));
     }, 1400);
     return () => clearTimeout(timer);
-  }, [status, navigation]);
+  }, [resolvedHere, navigation]);
 
   const onNudge = async () => {
     const updated = { ...task, lastNudgedAt: Date.now() };
@@ -131,7 +145,19 @@ export default function DispatchScreen({ route, navigation }: Props) {
             </View>
           </View>
           <Text style={styles.routeLabel}>
-            {uldCountLabel} <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
+            {uldCountLabel}{' '}
+            {dispatch.origin ? (
+              <>
+                <Text style={styles.routeLabelMuted}>from </Text>
+                {dispatch.origin}
+                <Text style={styles.routeLabelMuted}> to </Text>
+                {dispatch.stand}
+              </>
+            ) : (
+              // Tasks made before the route step, and empty-ULD requests,
+              // have no origin -- they read exactly as they always did.
+              <Text style={styles.routeLabelMuted}>to {dispatch.stand}</Text>
+            )}
           </Text>
 
           {!task.isEmptyRequest && (
@@ -177,9 +203,9 @@ export default function DispatchScreen({ route, navigation }: Props) {
           <Text style={styles.totalTimeText}>Total time: {totalTimeLabel}</Text>
         </View>
 
-        {task.driver && (
+        {driver && (
           <Text style={styles.driverLine}>
-            Assigned to {task.driver.name} ({task.driver.vehicle})
+            Assigned to {driver.name} ({driver.vehicle})
             {task.lastNudgedAt ? ` · nudged ${nudgedAgo(task.lastNudgedAt, now)}` : ''}
           </Text>
         )}
@@ -196,10 +222,10 @@ export default function DispatchScreen({ route, navigation }: Props) {
               style={styles.assignButton}
               onPress={() => navigation.navigate('AssignDriver', { record: { ...task, dispatch } })}
             >
-              <Text style={styles.assignButtonText}>{task.driver ? 'Reassign driver' : 'Assign driver'}</Text>
+              <Text style={styles.assignButtonText}>{driver ? 'Reassign driver' : 'Assign driver'}</Text>
             </Pressable>
 
-            {task.driver && (
+            {driver && (
               <View style={styles.secondaryActionsRow}>
                 <Pressable style={styles.secondaryActionButton} onPress={onNudge}>
                   <Text style={styles.secondaryActionButtonText}>Nudge driver</Text>
@@ -215,7 +241,7 @@ export default function DispatchScreen({ route, navigation }: Props) {
 
       {nudgeToast && (
         <View style={styles.nudgeToast} pointerEvents="none">
-          <Text style={styles.nudgeToastText}>Nudge sent to {task.driver?.name}</Text>
+          <Text style={styles.nudgeToastText}>Nudge sent to {driver?.name}</Text>
         </View>
       )}
     </SafeAreaView>

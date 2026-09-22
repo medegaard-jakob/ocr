@@ -39,6 +39,11 @@ yarn-error.*
 # Playwright MCP output (page snapshots, screenshots it saves by default)
 .playwright-mcp/
 
+# Screenshots dropped in the repo root -- the design-reviewer agent saves them
+# with bare filenames, which lands them here rather than in .playwright-mcp/.
+# Root level only, so assets/ is unaffected.
+/*.png
+
 # generated native folders
 /ios
 /android

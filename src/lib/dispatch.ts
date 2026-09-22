@@ -6,12 +6,24 @@
  * demo feel consistent across repeated scans instead of re-randomizing.
  */
 
+import { MOCK_LOCATION_CONFIG, formatLocation } from './locations';
 import { colors } from './theme';
 
 export type Priority = 'standard' | 'priority' | 'aog';
 
 export interface DispatchInfo {
+  /**
+   * Where the task ends: the label of a place, not necessarily a stand. The
+   * field kept its old name because it is on every stored task; it has held
+   * non-stand values since the empty-ULD flow started writing a bank into it.
+   */
   stand: string;
+  /**
+   * Where the task starts. Optional because tasks made before the route step
+   * existed have no origin, and the empty-ULD flow still doesn't set one --
+   * those render their destination alone, exactly as they always did.
+   */
+  origin?: string;
   startTime: number;
   latestDeliveryTime: number;
   priority: Priority;
@@ -21,15 +33,53 @@ export type DriverStatus = 'available' | 'on_route';
 
 export interface Driver {
   id: string;
-  /** Short tug/vehicle code shown as a chip, e.g. "T004". */
-  code: string;
   name: string;
+  /**
+   * The tug this driver is on, e.g. "Tug 04". This is the *only* vehicle
+   * identifier a driver has: every screen that names the assignment (task
+   * list, task detail, assign toast) shows it, and the narrow chip in the
+   * driver picker shows `tugCode()` of it, so the same driver reads the same
+   * way everywhere.
+   */
   vehicle: string;
   status: DriverStatus;
   shiftStart: string;
   shiftEnd: string;
-  /** How many other transportation orders are already queued to this driver. */
-  activeTasks: number;
+}
+
+/** Compact form of a driver's tug for narrow chips: "Tug 04" -> "T04". */
+export function tugCode(driver: Driver): string {
+  return driver.vehicle.replace(/^Tug\s*/i, 'T');
+}
+
+/**
+ * The driver a task is assigned to, resolved against the live roster.
+ *
+ * A record persists a *snapshot* of the driver it was assigned to, so a task
+ * saved before a roster edit would otherwise keep rendering the old name or
+ * tug while the driver picker renders the new one -- the task list and the
+ * driver team quietly disagreeing about the same assignment. Resolving by id
+ * means every screen reads one source of truth; the stored snapshot is only
+ * the fallback, for a driver who has since left the roster.
+ */
+export function taskDriver(record: { driverId?: string; driver?: Driver }): Driver | undefined {
+  const id = record.driverId ?? record.driver?.id;
+  if (!id) return record.driver;
+  return MOCK_DRIVERS.find((d) => d.id === id) ?? record.driver;
+}
+
+/**
+ * How many tasks a driver has on right now: their unresolved assignments and
+ * nothing else -- no seed or baseline number. Reassigning a task away from
+ * someone, or resolving it, is immediately one fewer. The driver picker draws
+ * this as bars in the load box (capped at 3); it lives here, next to the
+ * roster, so no screen can invent its own idea of a driver's workload.
+ */
+export function activeTaskCount(
+  driverId: string,
+  records: { driverId?: string; driver?: Driver; resolvedAt?: number }[],
+): number {
+  return records.filter((r) => !r.resolvedAt && (r.driverId ?? r.driver?.id) === driverId).length;
 }
 
 export const PRIORITY_META: Record<Priority, { label: string; color: string; bg: string }> = {
@@ -39,12 +89,12 @@ export const PRIORITY_META: Record<Priority, { label: string; color: string; bg:
 };
 
 export const MOCK_DRIVERS: Driver[] = [
-  { id: 'd1', code: 'T347', name: 'Marcus Webb', vehicle: 'Tug 04', status: 'available', shiftStart: '05:00', shiftEnd: '14:00', activeTasks: 0 },
-  { id: 'd2', code: 'T002', name: 'Priya Nair', vehicle: 'Tug 11', status: 'available', shiftStart: '06:00', shiftEnd: '15:00', activeTasks: 1 },
-  { id: 'd3', code: 'T122', name: 'Sam Okafor', vehicle: 'Tug 07', status: 'on_route', shiftStart: '05:00', shiftEnd: '16:00', activeTasks: 2 },
-  { id: 'd4', code: 'T075', name: 'Elena Kowalski', vehicle: 'Tug 15', status: 'available', shiftStart: '05:00', shiftEnd: '14:00', activeTasks: 0 },
-  { id: 'd5', code: 'T034', name: 'Jonas Berg', vehicle: 'Tug 02', status: 'on_route', shiftStart: '05:00', shiftEnd: '14:00', activeTasks: 3 },
-  { id: 'd6', code: 'T091', name: 'Aisha Mensah', vehicle: 'Tug 19', status: 'available', shiftStart: '07:00', shiftEnd: '16:00', activeTasks: 1 },
+  { id: 'd1', name: 'Marcus Webb', vehicle: 'Tug 04', status: 'available', shiftStart: '05:00', shiftEnd: '14:00' },
+  { id: 'd2', name: 'Priya Nair', vehicle: 'Tug 11', status: 'available', shiftStart: '06:00', shiftEnd: '15:00' },
+  { id: 'd3', name: 'Sam Okafor', vehicle: 'Tug 07', status: 'on_route', shiftStart: '05:00', shiftEnd: '16:00' },
+  { id: 'd4', name: 'Elena Kowalski', vehicle: 'Tug 15', status: 'available', shiftStart: '05:00', shiftEnd: '14:00' },
+  { id: 'd5', name: 'Jonas Berg', vehicle: 'Tug 02', status: 'on_route', shiftStart: '05:00', shiftEnd: '14:00' },
+  { id: 'd6', name: 'Aisha Mensah', vehicle: 'Tug 19', status: 'available', shiftStart: '07:00', shiftEnd: '16:00' },
 ];
 
 // djb2 string hash -> mulberry32 PRNG, so a given ULD code always maps to
@@ -82,6 +132,12 @@ export function generateDispatchInfo(uldCode: string, now: number = Date.now()):
   const number = 1 + Math.floor(rand() * 32);
   const stand = `Stand ${prefix}${number}`;
 
+  // A ULD being taken to a stand has almost always come off full storage, so
+  // that's the opening guess -- the route step exists to correct it when it's
+  // wrong, not to make the supervisor fill it in from nothing.
+  const areas = MOCK_LOCATION_CONFIG.fullStorageAreas;
+  const origin = formatLocation('full_storage', areas[Math.floor(rand() * areas.length)]);
+
   const priorityRoll = rand();
   const priority: Priority = priorityRoll < 0.1 ? 'aog' : priorityRoll < 0.4 ? 'priority' : 'standard';
 
@@ -96,7 +152,7 @@ export function generateDispatchInfo(uldCode: string, now: number = Date.now()):
   const startTime = now + startOffsetMin * 60_000;
   const latestDeliveryTime = startTime + windowMin * 60_000;
 
-  return { stand, startTime, latestDeliveryTime, priority };
+  return { stand, origin, startTime, latestDeliveryTime, priority };
 }
 
 const TEST_TYPE_CODES = ['AKE', 'PMC', 'ALF', 'DPE'];
@@ -151,16 +207,30 @@ export type TaskStatus = 'overdue' | 'at_risk' | 'on_time' | 'resolved';
 // Warn a bit before the deadline, not just after it's blown.
 const AT_RISK_WINDOW_MS = 15 * 60_000;
 
+/**
+ * Where a deadline sits relative to now: blown, inside the warning window, or
+ * still fine. This is the app's single timing rule -- Task overview grades a
+ * task's delivery deadline through it, Flight overview grades each ULD's
+ * deadline for making its flight -- so the warning window is widened or
+ * narrowed in exactly one place.
+ */
+export function getDeadlineStatus(
+  latestDeliveryTime: number,
+  now: number = Date.now(),
+): Exclude<TaskStatus, 'resolved'> {
+  const remaining = latestDeliveryTime - now;
+  if (remaining < 0) return 'overdue';
+  if (remaining <= AT_RISK_WINDOW_MS) return 'at_risk';
+  return 'on_time';
+}
+
 export function getTaskStatus(
   record: { dispatch?: DispatchInfo; resolvedAt?: number },
   now: number = Date.now(),
 ): TaskStatus {
   if (record.resolvedAt) return 'resolved';
   if (!record.dispatch) return 'on_time';
-  const remaining = record.dispatch.latestDeliveryTime - now;
-  if (remaining < 0) return 'overdue';
-  if (remaining <= AT_RISK_WINDOW_MS) return 'at_risk';
-  return 'on_time';
+  return getDeadlineStatus(record.dispatch.latestDeliveryTime, now);
 }
 
 // Solid, saturated fills (vs. the pastel PRIORITY_META pills) so a task's

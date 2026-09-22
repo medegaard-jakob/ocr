@@ -13,6 +13,7 @@ import {
   generateTestUldCode,
   getTaskStatus,
   pickRandomDriver,
+  taskDriver,
   type TaskStatus,
 } from '../lib/dispatch';
 import { clearHistory, deleteRecord, loadHistory, saveRecord } from '../lib/storage';
@@ -42,12 +43,14 @@ function compareTasks(a: ScanRecord, b: ScanRecord, now: number): number {
 function generateTestOverdueTask(): ScanRecord {
   const now = Date.now();
   const code = generateTestUldCode();
+  const driver = pickRandomDriver();
   return {
     id: `test-${now}-${Math.floor(Math.random() * 100000)}`,
     timestamp: now,
     ulds: [{ imageUri: null, rawText: code, uld: parseUldToken(code), manuallyEdited: false }],
     dispatch: generateTestOverdueDispatch(now),
-    driver: pickRandomDriver(),
+    driverId: driver.id,
+    driver,
   };
 }
 
@@ -117,6 +120,7 @@ export default function HistoryScreen({ navigation }: Props) {
           const extraCount = item.ulds.length - 1;
           const anyManuallyEdited = item.ulds.some((u) => u.manuallyEdited);
           const status = getTaskStatus(item, now);
+          const driver = taskDriver(item);
           const statusMeta = status !== 'on_time' ? TASK_STATUS_META[status] : null;
           return (
             <Pressable
@@ -166,7 +170,19 @@ export default function HistoryScreen({ navigation }: Props) {
                   )}
                 </View>
 
-                {item.dispatch && <Text style={styles.standText}>{item.dispatch.stand}</Text>}
+                {item.dispatch && (
+                  <Text style={styles.standText}>
+                    {item.dispatch.origin ? (
+                      <>
+                        {item.dispatch.origin}
+                        <Text style={styles.standArrow}> → </Text>
+                        {item.dispatch.stand}
+                      </>
+                    ) : (
+                      item.dispatch.stand
+                    )}
+                  </Text>
+                )}
 
                 <Text style={styles.code}>
                   {item.isEmptyRequest
@@ -176,10 +192,10 @@ export default function HistoryScreen({ navigation }: Props) {
                 </Text>
 
                 <View style={styles.bottomLine}>
-                  {item.driver && (
+                  {driver && (
                     <View style={styles.driverChip}>
                       <Text style={styles.driverChipText}>
-                        {item.driver.name} · {item.driver.vehicle}
+                        {driver.name} · {driver.vehicle}
                       </Text>
                     </View>
                   )}
@@ -232,6 +248,7 @@ const styles = StyleSheet.create({
   statusPill: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 },
   statusPillText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
   standText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
+  standArrow: { color: colors.textSecondary, fontWeight: '400' },
   code: { fontSize: 23, fontWeight: '700', color: colors.textPrimary, letterSpacing: 1 },
   codeExtra: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0 },
   timestamp: { fontSize: 13, color: colors.textSecondary },

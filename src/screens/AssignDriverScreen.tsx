@@ -1,29 +1,25 @@
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import TractorIcon from '../components/TractorIcon';
 import { showAlert } from '../lib/alert';
-import { Driver, MOCK_DRIVERS, getTaskStatus } from '../lib/dispatch';
-import { saveRecord } from '../lib/storage';
+import { Driver, MOCK_DRIVERS, activeTaskCount, getTaskStatus, taskDriver, tugCode } from '../lib/dispatch';
+import { loadHistory, saveRecord } from '../lib/storage';
 import { colors } from '../lib/theme';
-import type { RootStackParamList } from '../types';
+import type { RootStackParamList, ScanRecord } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AssignDriver'>;
 
-// Availability + current workload, per the tug/box legend:
-// tractor blue = driver available, grey = not available (on route);
-// box grey = no active tasks, box blue with bars = that many active tasks.
-function TractorIcon({ available }: { available: boolean }) {
-  const tint = available ? colors.accent : colors.disabled;
-  return (
-    <View style={styles.tractorWrap}>
-      <View style={[styles.tractorBody, { backgroundColor: tint }]} />
-      <View style={[styles.tractorCab, { backgroundColor: tint }]} />
-      <View style={[styles.tractorWheel, { left: 3, backgroundColor: colors.surface, borderColor: tint }]} />
-      <View style={[styles.tractorWheel, { right: 3, backgroundColor: colors.surface, borderColor: tint }]} />
-    </View>
-  );
+// Availability and workload are independent, per the tug/box legend:
+// tractor blue = driver available, grey = not available (on route) --
+// regardless of task count. Box grey = no active tasks, box blue with bars
+// (1-3, capped) = that many active tasks -- regardless of availability, so
+// a grey (unavailable) tractor next to a loaded box is a valid, expected
+// combination: a driver can have tasks queued while off-shift/on-route.
+function DriverTractor({ available }: { available: boolean }) {
+  return <TractorIcon color={available ? colors.accent : colors.disabled} />;
 }
 
 function LoadIcon({ activeTasks }: { activeTasks: number }) {
@@ -39,16 +35,45 @@ function LoadIcon({ activeTasks }: { activeTasks: number }) {
 
 export default function AssignDriverScreen({ route, navigation }: Props) {
   const { record } = route.params;
-  const [selectedId, setSelectedId] = useState<string | null>(record.driver?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(taskDriver(record)?.id ?? null);
   const [assigning, setAssigning] = useState(false);
   const [toastDriver, setToastDriver] = useState<Driver | null>(null);
   const [resolveOnAssign, setResolveOnAssign] = useState(false);
+  const [records, setRecords] = useState<ScanRecord[]>([]);
+
+  // selectedId/resolveOnAssign above only seed from the route param on this
+  // component's *first* mount. React Navigation can reuse an already-mounted
+  // AssignDriver screen instance across different records (e.g. navigating
+  // here for one task, backing out without assigning, then reassigning a
+  // different task) rather than always remounting fresh -- without this,
+  // that reuse would leave the previous task's driver pick (and resolve
+  // checkbox) silently carried over onto an unrelated task. Resync
+  // explicitly whenever the record we're assigning for actually changes.
+  useEffect(() => {
+    setSelectedId(taskDriver(record)?.id ?? null);
+    setResolveOnAssign(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record.id]);
+
+  const refreshRecords = useCallback(() => {
+    loadHistory().then(setRecords);
+  }, []);
+
+  // Reload on focus so reopening this screen (e.g. after assigning a task
+  // and coming back to reassign another) shows every driver's current load.
+  useFocusEffect(refreshRecords);
 
   const selectedDriver = MOCK_DRIVERS.find((d) => d.id === selectedId) ?? null;
 
+  // Who the task is on right now, as opposed to who the supervisor has
+  // tapped. The tick alone can't tell those apart -- it looks identical
+  // whether it was seeded from the existing assignment or just tapped -- so
+  // the current driver is called out in the header and on their own row.
+  const currentDriver = taskDriver(record);
+
   // True when this task already had a driver -- i.e. this is a reassignment
   // from Task overview, not the tail end of the scan-to-dispatch wizard.
-  const isReassignment = !!record.driver;
+  const isReassignment = !!currentDriver;
 
   // Only offer this when reassigning a task that's already flagged as
   // needing attention -- a fresh, never-assigned, or on-time task has
@@ -60,19 +85,25 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     if (!toastDriver) return;
-    const timer = setTimeout(() => {
-      // Reassigning is a task-management action reached from Task overview --
-      // land back there. A first-time assignment is the tail end of the
-      // scan/request wizard that started at Home, so that one still returns
-      // to the main menu.
-      navigation.dispatch(
-        isReassignment
-          ? CommonActions.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'History' }] })
-          : CommonActions.reset({ index: 0, routes: [{ name: 'Home' }] }),
-      );
-    }, 1600);
+    // Give the "Marked resolved" line (an extra thing to notice, on top of
+    // the assignment itself) more time to actually register than the plain
+    // assignment toast needs.
+    const timer = setTimeout(
+      () => {
+        // Reassigning is a task-management action reached from Task overview --
+        // land back there. A first-time assignment is the tail end of the
+        // scan/request wizard that started at Home, so that one still returns
+        // to the main menu.
+        navigation.dispatch(
+          isReassignment
+            ? CommonActions.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'History' }] })
+            : CommonActions.reset({ index: 0, routes: [{ name: 'Home' }] }),
+        );
+      },
+      resolveOnAssign ? 2400 : 1600,
+    );
     return () => clearTimeout(timer);
-  }, [toastDriver, navigation, isReassignment]);
+  }, [toastDriver, navigation, isReassignment, resolveOnAssign]);
 
   const onAssign = async () => {
     if (!selectedDriver || !record.dispatch) return;
@@ -81,9 +112,11 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
       await saveRecord({
         ...record,
         dispatch: record.dispatch,
+        driverId: selectedDriver.id,
         driver: selectedDriver,
         resolvedAt: resolveOnAssign ? Date.now() : record.resolvedAt,
       });
+      refreshRecords();
       setToastDriver(selectedDriver);
     } catch (err) {
       showAlert(
@@ -98,6 +131,11 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <Text style={styles.heading}>{record.dispatch?.stand ?? 'Stand'} driver team</Text>
+      {currentDriver && (
+        <Text style={styles.currentLine}>
+          Currently on {currentDriver.name} · {currentDriver.vehicle}
+        </Text>
+      )}
 
       <View style={styles.uldSection}>
         {record.isEmptyRequest ? (
@@ -131,9 +169,16 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         data={MOCK_DRIVERS}
+        extraData={records}
         keyExtractor={(d) => d.id}
         renderItem={({ item }) => (
-          <DriverRow driver={item} selected={item.id === selectedId} onPress={() => setSelectedId(item.id)} />
+          <DriverRow
+            driver={item}
+            activeTasks={activeTaskCount(item.id, records)}
+            selected={item.id === selectedId}
+            isCurrent={item.id === currentDriver?.id}
+            onPress={() => setSelectedId(item.id)}
+          />
         )}
       />
 
@@ -145,7 +190,10 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.resolveRowTitle}>Mark this task resolved after reassigning</Text>
-              <Text style={styles.resolveRowSub}>This task is at risk -- check this if reassigning it now handles it.</Text>
+              <Text style={styles.resolveRowSub}>
+                This task is {status === 'overdue' ? 'overdue' : 'at risk'} -- check this if reassigning it now
+                handles it.
+              </Text>
             </View>
           </Pressable>
         )}
@@ -170,7 +218,7 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
                 <View style={styles.toastListBar} />
               </View>
               <Text style={styles.toastArrow}>→</Text>
-              <TractorIcon available />
+              <DriverTractor available />
             </View>
             <Text style={styles.toastText}>
               {record.ulds.length > 1 ? 'Tasks' : 'Task'} sent to {toastDriver.vehicle.toLowerCase()}
@@ -183,22 +231,35 @@ export default function AssignDriverScreen({ route, navigation }: Props) {
   );
 }
 
-function DriverRow({ driver, selected, onPress }: { driver: Driver; selected: boolean; onPress: () => void }) {
+function DriverRow({
+  driver,
+  activeTasks,
+  selected,
+  isCurrent,
+  onPress,
+}: {
+  driver: Driver;
+  activeTasks: number;
+  selected: boolean;
+  isCurrent: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
       <View style={[styles.checkbox, selected && styles.checkboxChecked]}>
         {selected && <View style={styles.checkboxTick} />}
       </View>
       <View style={styles.codeChip}>
-        <Text style={styles.codeChipText}>{driver.code}</Text>
+        <Text style={styles.codeChipText}>{tugCode(driver)}</Text>
       </View>
-      <TractorIcon available={driver.status === 'available'} />
-      <LoadIcon activeTasks={driver.activeTasks} />
+      <DriverTractor available={driver.status === 'available'} />
+      <LoadIcon activeTasks={activeTasks} />
       <View style={{ flex: 1 }}>
         <Text style={styles.driverName}>{driver.name}</Text>
         <Text style={styles.driverShift}>
           {driver.shiftStart} - {driver.shiftEnd}
         </Text>
+        {isCurrent && <Text style={styles.currentTag}>Assigned now</Text>}
       </View>
     </Pressable>
   );
@@ -207,6 +268,7 @@ function DriverRow({ driver, selected, onPress }: { driver: Driver; selected: bo
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   heading: { fontSize: 19, fontWeight: '700', color: colors.textPrimary, paddingHorizontal: 20, paddingTop: 16 },
+  currentLine: { fontSize: 14, color: colors.textSecondary, paddingHorizontal: 20, paddingTop: 4 },
   uldSection: { paddingHorizontal: 20, paddingTop: 12, gap: 8 },
   uldSectionLabel: { fontSize: 13, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase' },
   uldChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -251,10 +313,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   codeChipText: { color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
-  tractorWrap: { width: 32, height: 25, alignItems: 'center', justifyContent: 'center' },
-  tractorBody: { width: 25, height: 12, borderRadius: 2, position: 'absolute', bottom: 5 },
-  tractorCab: { width: 11, height: 10, borderRadius: 2, position: 'absolute', top: 1, right: 2 },
-  tractorWheel: { width: 7, height: 7, borderRadius: 4, borderWidth: 2, position: 'absolute', bottom: 0 },
   loadBox: {
     width: 27,
     height: 25,
@@ -266,6 +324,7 @@ const styles = StyleSheet.create({
   loadBar: { width: 15, height: 2.5, backgroundColor: 'white', borderRadius: 1 },
   driverName: { color: colors.textPrimary, fontSize: 19, fontWeight: '600' },
   driverShift: { color: colors.textSecondary, fontSize: 14, marginTop: 2 },
+  currentTag: { color: colors.accent, fontSize: 13, fontWeight: '700', marginTop: 3 },
   footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border, gap: 14 },
   resolveRow: {
     flexDirection: 'row',

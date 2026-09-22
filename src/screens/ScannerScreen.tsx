@@ -82,10 +82,15 @@ export default function ScannerScreen({ navigation, route }: Props) {
 
   // Auto-scan: while the live camera is on screen (web only -- Tesseract is
   // the only OCR path that's actually available there), try a frame roughly
-  // once a second. Two consecutive attempts have to agree on the exact same
-  // code before it's trusted and auto-submitted, so one blurry/misread frame
-  // can't wrongly commit you to a code -- it just gets silently discarded and
-  // tried again. The manual shutter still works at any time as an override.
+  // once a second. An exact read (matched the ULD format with no OCR-confusion
+  // corrections needed) is trusted immediately -- holding a good angle for a
+  // single frame is already hard enough on a real placard without also
+  // requiring it twice in a row. A corrected read (one or more characters had
+  // to be fixed up, e.g. a misread 0/O) still needs two consecutive attempts
+  // to agree on the exact same code before it's trusted, so a blurry/misread
+  // frame can't wrongly commit you to a guessed code -- it just gets silently
+  // discarded and tried again. The manual shutter still works at any time as
+  // an override.
   useEffect(() => {
     if (Platform.OS !== 'web' || !permission?.granted || manualVisible || !isFocused) return;
 
@@ -102,7 +107,7 @@ export default function ScannerScreen({ navigation, route }: Props) {
           setAutoHint('scanning');
           return;
         }
-        if (candidateRef.current === uld.code) {
+        if (uld.confidence === 'exact' || candidateRef.current === uld.code) {
           candidateRef.current = null;
           const entry: UldEntry = { imageUri: result.uri, rawText: result.text, uld, manuallyEdited: false };
           navigation.navigate('Result', { entry, ride });

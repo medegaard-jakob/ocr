@@ -123,11 +123,14 @@ export default function ContinuousScannerScreen({ navigation }: Props) {
       return 'miss';
     }
 
-    // Same two-reads-agree rule the original scanner uses: one blurry frame
-    // can't inject a wrong code on its own. It matters more here, not less --
-    // nobody confirms each read, and a plausible-looking misread would sail
-    // through the review screen unnoticed.
-    if (candidateRef.current !== uld.code) {
+    // Same rule the original scanner uses: an exact read (matched the ULD
+    // format with no OCR-confusion corrections needed) is trusted on the
+    // spot -- holding a good angle for one frame is hard enough without
+    // requiring it twice. A corrected read still needs two consecutive
+    // attempts to agree on the exact same code, since nobody confirms each
+    // read here and a plausible-looking misread would sail through the
+    // review screen unnoticed otherwise.
+    if (uld.confidence !== 'exact' && candidateRef.current !== uld.code) {
       candidateRef.current = uld.code;
       return 'miss';
     }

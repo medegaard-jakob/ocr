@@ -22,6 +22,16 @@ import { MAX_ULDS_PER_RIDE, type RootStackParamList, type UldEntry } from '../ty
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Scanner'>;
 
+// expo-camera's zoom prop ranges 0 (no zoom, widest field of view) to 1 (max
+// zoom). On web specifically, passing the literal 0 never actually reaches
+// the camera track -- expo-camera's web implementation treats a falsy zoom
+// value as "no change requested" and just leaves whatever zoom level the
+// browser/device happened to open the camera stream at, which on many phones
+// is already zoomed in well past 1x. A value that's effectively zero but not
+// literally 0 clears that bug and forces the track to the minimum (widest)
+// zoom, which is what actually fixes the "have to stand far back" problem.
+const MIN_ZOOM = 0.01;
+
 // The OCR engine (@react-native-ml-kit/text-recognition) is native code and
 // is not present in Expo Go. It only works in a custom dev-client / release
 // build. We probe for it lazily so the rest of the app still runs in Expo Go
@@ -329,7 +339,13 @@ export default function ScannerScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} />
+      <CameraView
+        ref={cameraRef}
+        style={StyleSheet.absoluteFill}
+        facing="back"
+        enableTorch={torch}
+        zoom={MIN_ZOOM}
+      />
       <ScanFrameOverlay
         accentColor={!busy && autoHint === 'candidate' ? colors.warning : undefined}
         hint={

@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScanFrameOverlay from '../components/ScanFrameOverlay';
+import { readBarcodeFromUri } from '../lib/barcode';
 import { MIN_ZOOM } from '../lib/ocr';
 import { loadHistory } from '../lib/storage';
 import { colors } from '../lib/theme';
@@ -22,6 +23,10 @@ const FLASH_MS = 1200;
  *  detector fires on every frame the code is visible in, not once per code,
  *  so without this the same placard held steady would add duplicates. */
 const RESCAN_COOLDOWN_MS = 2000;
+
+/** How often the slower, higher-res enhanced pass takes its own photo and
+ *  tries a contrast-stretched read, alongside the live stream scan. */
+const ENHANCED_SCAN_INTERVAL_MS = 1500;
 
 // ULD ID labels print their code as both text and a 1D barcode. Code 128 and
 // Code 39 are what's actually shown up on the labels tried so far; Code 93
@@ -43,6 +48,14 @@ type Flash =
  * clean hit or nothing at all, with no OCR-confusion corrections and no
  * two-reads-agree consensus to wait on.
  *
+ * Two detection passes run side by side on web: the live stream scan above
+ * catches a clean barcode instantly and costs nothing extra, while a slower
+ * enhanced pass (lib/barcode.ts) periodically takes its own higher-res
+ * photo and contrast-stretches it before trying again -- aimed at damaged,
+ * faded, or glare-hit barcodes the live pass can't pick out of a lower-res,
+ * unprocessed frame. Both feed into the same processDecodedCode, so it
+ * doesn't matter which one actually catches a given code.
+ *
  * Shares its running-list-then-review shape with Make task - B (scan
  * continuously, confirm what to keep on ScanReview afterward) since that
  * part has nothing to do with how each code was read.
@@ -52,16 +65,22 @@ export default function BarcodeScannerScreen({ navigation }: Props) {
   const [torch, setTorch] = useState(false);
   const [entries, setEntries] = useState<UldEntry[]>([]);
   const [flash, setFlash] = useState<Flash | null>(null);
+  // Set when the enhanced pass throws (e.g. the barcode-detector polyfill
+  // failing to load) rather than just finding nothing -- see the OCR
+  // screens for why this is worth surfacing instead of swallowing silently.
+  const [autoError, setAutoError] = useState<string | null>(null);
 
   // ULD codes already carried by a task that hasn't been resolved yet -- see
   // ContinuousScannerScreen for why this is worth surfacing but not enforcing.
   const [openTaskCodes, setOpenTaskCodes] = useState<Set<string>>(new Set());
 
+  const cameraRef = useRef<CameraView>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The list as onBarcodeScanned sees it -- state alone would go stale
-  // inside that closure between renders.
+  // The list as the scan handlers see it -- state alone would go stale
+  // inside those closures between renders.
   const entriesRef = useRef<UldEntry[]>([]);
   const lastReadRef = useRef<{ code: string; at: number } | null>(null);
+  const enhancedBusyRef = useRef(false);
   const isFocused = useIsFocused();
 
   const full = entries.length >= MAX_ULDS_PER_RIDE;
@@ -89,8 +108,9 @@ export default function BarcodeScannerScreen({ navigation }: Props) {
     flashTimer.current = setTimeout(() => setFlash(null), FLASH_MS);
   };
 
-  const onBarcodeScanned = (result: BarcodeScanningResult) => {
-    const data = result.data.trim();
+  /** Shared by the live stream scan and the enhanced pass below -- neither
+   *  cares which one actually caught a given code. */
+  const processDecodedCode = (data: string) => {
     const now = Date.now();
     if (lastReadRef.current && lastReadRef.current.code === data && now - lastReadRef.current.at < RESCAN_COOLDOWN_MS) {
       return;
@@ -124,11 +144,43 @@ export default function BarcodeScannerScreen({ navigation }: Props) {
     }
   };
 
+  const onBarcodeScanned = (result: BarcodeScanningResult) => {
+    processDecodedCode(result.data.trim());
+  };
+
+  // The enhanced pass: web only, same as the OCR screens -- native platforms'
+  // barcode detection already runs continuously at full camera resolution
+  // via expo-camera's own ML Kit/AVFoundation integration, so there's no
+  // equivalent low-res-preview gap to fill there.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !permission?.granted || !isFocused || full) return;
+
+    const id = setInterval(async () => {
+      if (enhancedBusyRef.current) return;
+      enhancedBusyRef.current = true;
+      try {
+        const photo = await cameraRef.current?.takePictureAsync({ quality: 1 });
+        setAutoError(null);
+        if (!photo) return;
+        const result = await readBarcodeFromUri(photo.uri);
+        if (result) processDecodedCode(result.data.trim());
+      } catch (err) {
+        setAutoError(err instanceof Error ? err.message : String(err));
+      } finally {
+        enhancedBusyRef.current = false;
+      }
+    }, ENHANCED_SCAN_INTERVAL_MS);
+
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permission?.granted, isFocused, full, openTaskCodes]);
+
   const hint = (() => {
     if (full) return `${MAX_ULDS_PER_RIDE} ULDs on this task — tap Done to review`;
     if (flash?.kind === 'added') return `${flash.code} added`;
     if (flash?.kind === 'duplicate') return `${flash.code} is already on this task`;
     if (flash?.kind === 'conflict') return `${flash.code} added — it's on another open task`;
+    if (autoError) return `Enhanced scan error, retrying: ${autoError}`;
     return entries.length > 0
       ? 'Keep scanning — each new barcode is added automatically'
       : 'Align the barcode on the ULD ID label inside the frame';
@@ -138,7 +190,9 @@ export default function BarcodeScannerScreen({ navigation }: Props) {
     ? flash.kind === 'added'
       ? colors.success
       : colors.warning
-    : undefined;
+    : autoError
+      ? colors.danger
+      : undefined;
 
   if (!permission || !accessResolved || asking) {
     return <View style={styles.center} />;
@@ -168,6 +222,7 @@ export default function BarcodeScannerScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <CameraView
+        ref={cameraRef}
         style={StyleSheet.absoluteFill}
         facing="back"
         enableTorch={torch}

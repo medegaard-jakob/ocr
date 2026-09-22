@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScanFrameOverlay from '../components/ScanFrameOverlay';
+import { showAlert } from '../lib/alert';
 import { captureFrame, MIN_ZOOM } from '../lib/ocr';
 import { loadHistory } from '../lib/storage';
 import { colors } from '../lib/theme';
@@ -39,6 +40,12 @@ export default function ContinuousScannerScreen({ navigation }: Props) {
   const [entries, setEntries] = useState<UldEntry[]>([]);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [scanning, setScanning] = useState(false);
+  // Set when a capture/OCR attempt throws (e.g. the Tesseract worker failing
+  // to load) instead of just finding no code. Previously swallowed silently
+  // by both the loop and the shutter below, which made "stuck scanning
+  // forever" and "actually erroring every attempt" look identical from the
+  // screen -- this surfaces the difference instead of it being a mystery.
+  const [autoError, setAutoError] = useState<string | null>(null);
 
   // ULD codes already carried by a task that hasn't been resolved yet. A ULD
   // belongs to one task at a time, so seeing one here means it's still open
@@ -108,6 +115,7 @@ export default function ContinuousScannerScreen({ navigation }: Props) {
   /** One capture-and-read pass, shared by the auto loop and the shutter. */
   const scanOnce = async (quality: number): Promise<'hit' | 'miss' | 'unavailable'> => {
     const result = await captureFrame(cameraRef, quality);
+    setAutoError(null);
     if (!result) return 'unavailable';
     const uld = findUldInText(result.text);
     if (!uld) {
@@ -143,8 +151,11 @@ export default function ContinuousScannerScreen({ navigation }: Props) {
       scanningRef.current = true;
       try {
         await scanOnce(0.5);
-      } catch {
-        // A single failed frame just gets retried on the next tick.
+      } catch (err) {
+        // Surfaced rather than swallowed -- a failed frame retries on the
+        // next tick either way, but this is what tells "no code found yet"
+        // apart from "every attempt is actually erroring."
+        setAutoError(err instanceof Error ? err.message : String(err));
       } finally {
         scanningRef.current = false;
       }
@@ -160,8 +171,13 @@ export default function ContinuousScannerScreen({ navigation }: Props) {
     setScanning(true);
     try {
       await scanOnce(0.8);
-    } catch {
-      // Same as the loop: a bad frame is just a miss, try again.
+    } catch (err) {
+      // A deliberate tap earns an explicit alert, unlike the loop's silent
+      // retry -- if OCR is broken entirely, this is how that stops being
+      // invisible.
+      const message = err instanceof Error ? err.message : String(err);
+      setAutoError(message);
+      showAlert('Scan failed', message);
     } finally {
       scanningRef.current = false;
       setScanning(false);
@@ -173,6 +189,7 @@ export default function ContinuousScannerScreen({ navigation }: Props) {
     if (flash?.kind === 'added') return `${flash.code} added`;
     if (flash?.kind === 'duplicate') return `${flash.code} is already on this task`;
     if (flash?.kind === 'conflict') return `${flash.code} added — it's on another open task`;
+    if (autoError) return `Scan error, retrying: ${autoError}`;
     if (candidateRef.current) return 'Got a possible match — hold steady…';
     return entries.length > 0
       ? 'Keep scanning — each new ULD is added automatically'
@@ -183,7 +200,9 @@ export default function ContinuousScannerScreen({ navigation }: Props) {
     ? flash.kind === 'added'
       ? colors.success
       : colors.warning
-    : undefined;
+    : autoError
+      ? colors.danger
+      : undefined;
 
   if (!permission || !accessResolved || asking) {
     return <View style={styles.center} />;

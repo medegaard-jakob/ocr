@@ -35,6 +35,12 @@ export default function ScannerScreen({ navigation, route }: Props) {
   // attempt found a valid code and is waiting to see the same code again
   // before trusting it -- a random misread almost never repeats itself.
   const [autoHint, setAutoHint] = useState<'scanning' | 'candidate'>('scanning');
+  // Set when a capture/OCR attempt throws (e.g. the Tesseract worker failing
+  // to load) instead of just finding no code. Previously swallowed silently
+  // by the loop below, which made "stuck on scanning forever" and "actually
+  // erroring every attempt" look identical from the screen -- this surfaces
+  // the difference instead of requiring a manual-shutter tap to find out.
+  const [autoError, setAutoError] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const busyRef = useRef(busy);
   busyRef.current = busy;
@@ -88,6 +94,7 @@ export default function ScannerScreen({ navigation, route }: Props) {
       autoBusyRef.current = true;
       try {
         const result = await captureFrame(cameraRef, 0.5);
+        setAutoError(null);
         if (!result) return;
         const uld = findUldInText(result.text);
         if (!uld) {
@@ -103,8 +110,11 @@ export default function ScannerScreen({ navigation, route }: Props) {
         }
         candidateRef.current = uld.code;
         setAutoHint('candidate');
-      } catch {
-        // A single failed frame just gets retried on the next tick.
+      } catch (err) {
+        // Surfaced rather than swallowed -- a failed frame retries on the
+        // next tick either way, but this is what tells "no code found yet"
+        // apart from "every attempt is actually erroring."
+        setAutoError(err instanceof Error ? err.message : String(err));
       } finally {
         autoBusyRef.current = false;
       }
@@ -223,15 +233,19 @@ export default function ScannerScreen({ navigation, route }: Props) {
         zoom={MIN_ZOOM}
       />
       <ScanFrameOverlay
-        accentColor={!busy && autoHint === 'candidate' ? colors.warning : undefined}
+        accentColor={
+          busy ? undefined : autoError ? colors.danger : autoHint === 'candidate' ? colors.warning : undefined
+        }
         hint={
           busy
             ? 'Reading photo…'
-            : autoHint === 'candidate'
-              ? 'Got a possible match — hold steady…'
-              : ride.length > 0
-                ? `Scan ULD ${ride.length + 1} for this ride (${ride.length}/${MAX_ULDS_PER_RIDE} added)`
-                : 'Align the ULD ID label (e.g. AKE12345LH) inside the frame'
+            : autoError
+              ? `Scan error, retrying: ${autoError}`
+              : autoHint === 'candidate'
+                ? 'Got a possible match — hold steady…'
+                : ride.length > 0
+                  ? `Scan ULD ${ride.length + 1} for this ride (${ride.length}/${MAX_ULDS_PER_RIDE} added)`
+                  : 'Align the ULD ID label (e.g. AKE12345LH) inside the frame'
         }
       />
 

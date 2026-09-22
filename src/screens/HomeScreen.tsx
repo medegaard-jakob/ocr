@@ -42,6 +42,7 @@ export default function HomeScreen({ navigation }: Props) {
   const items: MenuItem[] = [
     { label: 'Make task - A', onPress: () => navigation.navigate('Scanner') },
     { label: 'Make task - B', onPress: () => navigation.navigate('ContinuousScanner') },
+    { label: 'Make task - C', onPress: () => navigation.navigate('BarcodeScanner') },
     { label: 'Request empty ULD', onPress: () => navigation.navigate('RequestUldCompany') },
     { label: 'Task overview', onPress: () => navigation.navigate('History') },
     { label: 'Full Can Store overview' },

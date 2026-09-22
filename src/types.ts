@@ -45,6 +45,8 @@ export type RootStackParamList = {
   Result: { entry: UldEntry; ride: UldEntry[] };
   /** "Make task - B": the experimental continuous scanner, alongside Scanner. */
   ContinuousScanner: undefined;
+  /** "Make task - C": reads the placard's barcode instead of OCR'ing its text. */
+  BarcodeScanner: undefined;
   /** Everything that scanner caught, for triage before it becomes a task. */
   ScanReview: { entries: UldEntry[] };
   /** Set where the task runs from and to, before dispatch. Both flows pass here. */

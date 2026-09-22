@@ -2,6 +2,7 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import AssignDriverScreen from '../screens/AssignDriverScreen';
+import BarcodeScannerScreen from '../screens/BarcodeScannerScreen';
 import ContinuousScannerScreen from '../screens/ContinuousScannerScreen';
 import DispatchScreen from '../screens/DispatchScreen';
 import FlightOverviewScreen from '../screens/FlightOverviewScreen';
@@ -47,6 +48,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Scanner" component={ScannerScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Scan result' }} />
         <Stack.Screen name="ContinuousScanner" component={ContinuousScannerScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ headerShown: false }} />
         <Stack.Screen name="ScanReview" component={ScanReviewScreen} options={{ title: 'Review scanned ULDs' }} />
         <Stack.Screen name="TaskRoute" component={TaskRouteScreen} options={{ title: 'Task route' }} />
         <Stack.Screen name="Dispatch" component={DispatchScreen} options={{ title: 'Transportation order' }} />

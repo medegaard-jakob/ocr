@@ -9,6 +9,18 @@ import { Platform } from 'react-native';
 import type { CameraView } from 'expo-camera';
 import React from 'react';
 
+// expo-camera's zoom prop ranges 0 (no zoom, widest field of view) to 1 (max
+// zoom). On web specifically, passing the literal 0 never actually reaches
+// the camera track -- expo-camera's web implementation treats a falsy zoom
+// value as "no change requested" and just leaves whatever zoom level the
+// browser/device happened to open the camera stream at, which on many phones
+// is already zoomed in well past 1x. A value that's effectively zero but not
+// literally 0 clears that bug and forces the track to the minimum (widest)
+// zoom, which is what actually fixes having to stand unnaturally far back to
+// fit a placard in frame. Shared by both scanner screens so their camera
+// preview always frames the same way.
+export const MIN_ZOOM = 0.01;
+
 // The OCR engine (@react-native-ml-kit/text-recognition) is native code and
 // is not present in Expo Go. It only works in a custom dev-client / release
 // build. We probe for it lazily so the rest of the app still runs in Expo Go

@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScanFrameOverlay from '../components/ScanFrameOverlay';
-import { captureFrame } from '../lib/ocr';
+import { captureFrame, MIN_ZOOM } from '../lib/ocr';
 import { loadHistory } from '../lib/storage';
 import { colors } from '../lib/theme';
 import { findUldInText } from '../lib/uld';
@@ -212,7 +212,13 @@ export default function ContinuousScannerScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} />
+      <CameraView
+        ref={cameraRef}
+        style={StyleSheet.absoluteFill}
+        facing="back"
+        enableTorch={torch}
+        zoom={MIN_ZOOM}
+      />
       <ScanFrameOverlay accentColor={frameColor} hint={hint} />
 
       <SafeAreaView style={styles.topBar} edges={['top']}>

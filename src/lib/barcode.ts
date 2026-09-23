@@ -29,9 +29,10 @@ type BarcodeDetectorLike = {
 };
 
 // Browser-native format names for the Barcode Detection API, matching the
-// same Code 128/39/93/ITF symbologies BarcodeScannerScreen already requests
-// from expo-camera's own live detector.
-const WEB_FORMATS = ['code_128', 'code_39', 'code_93', 'itf'];
+// same symbologies BarcodeScannerScreen requests from expo-camera's own
+// live detector (see ULD_BARCODE_TYPES there for why this list is as wide
+// as it is).
+const WEB_FORMATS = ['code_128', 'code_39', 'code_93', 'itf', 'codabar', 'ean_13', 'ean_8', 'upc_a', 'upc_e'];
 
 let cachedDetector: BarcodeDetectorLike | null = null;
 

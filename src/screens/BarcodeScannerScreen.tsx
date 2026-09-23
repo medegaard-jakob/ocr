@@ -29,10 +29,25 @@ const RESCAN_COOLDOWN_MS = 2000;
 const ENHANCED_SCAN_INTERVAL_MS = 1500;
 
 // ULD ID labels print their code as both text and a 1D barcode. Code 128 and
-// Code 39 are what's actually shown up on the labels tried so far; Code 93
-// and ITF are close relatives sometimes used for the same purpose, included
-// so a different operator's label isn't silently unreadable.
-const ULD_BARCODE_TYPES = ['code128', 'code39', 'code93', 'itf14'] as const;
+// Code 39 (visually distinct -- Code 39 shows a clear gap between each
+// character's bars, Code 128 runs continuously) are both confirmed on real
+// labels tried so far; Code 93, ITF, Codabar, and the UPC/EAN family cover
+// the rest of the 1D symbologies a shipping/logistics label realistically
+// uses, so a different operator's label or printer isn't silently
+// unreadable. Whatever decodes still has to pass parseUldToken before it's
+// accepted, so casting this wide doesn't risk picking up an unrelated
+// barcode that happens to be in frame.
+const ULD_BARCODE_TYPES = [
+  'code128',
+  'code39',
+  'code93',
+  'itf14',
+  'codabar',
+  'ean13',
+  'ean8',
+  'upc_a',
+  'upc_e',
+] as const;
 
 type Flash =
   | { kind: 'added'; code: string }
